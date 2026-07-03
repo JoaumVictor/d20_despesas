@@ -1,0 +1,58 @@
+/**
+ * Tipagem do banco (schema d20_despesas).
+ * Estrutura derivada do Despesas.db original + colunas de multi-usuário/RLS.
+ */
+export type ExpenseStatus = 'PAY' | 'NOTPAY';
+
+export type CategoryRow = {
+  id: string;
+  user_id: string;
+  id_sort: number | null;
+  name: string;
+  icon: string;
+  color: string;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type ExpenseRow = {
+  id: string;
+  user_id: string;
+  recurrent_id: string | null;
+  category_id: string;
+  count_part: number;
+  description: string;
+  date_transaction: string;
+  price: number;
+  status: ExpenseStatus;
+  created_at: string;
+  updated_at: string | null;
+};
+
+type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
+
+export interface Database {
+  d20_despesas: {
+    Tables: {
+      categories: {
+        Row: CategoryRow;
+        Insert: Insert<CategoryRow, 'id' | 'created_at' | 'updated_at' | 'id_sort'>;
+        Update: Partial<CategoryRow>;
+        Relationships: [];
+      };
+      expenses: {
+        Row: ExpenseRow;
+        Insert: Insert<
+          ExpenseRow,
+          'id' | 'created_at' | 'updated_at' | 'recurrent_id' | 'count_part'
+        >;
+        Update: Partial<ExpenseRow>;
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+}
