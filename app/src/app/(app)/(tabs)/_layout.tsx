@@ -1,34 +1,34 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
-
-const ACTIVE = '#4f46e5';
-const INACTIVE = '#9ca3af';
+import { useTheme } from '@/theme/useTheme';
 
 /** Botão "+" central, elevado acima da tab bar. Abre o form de nova despesa. */
 function AddButton() {
   const router = useRouter();
+  const c = useTheme();
   return (
     <View style={styles.centerWrap}>
       <Pressable
-        style={styles.centerBtn}
+        style={[styles.centerBtn, { backgroundColor: c.primary }]}
         onPress={() => router.push('/expense/new')}
         android_ripple={{ color: 'rgba(255,255,255,0.25)', borderless: true }}
       >
-        <MaterialCommunityIcons name="plus" size={30} color="#fff" />
+        <MaterialCommunityIcons name="plus" size={30} color={c.primaryContrast} />
       </Pressable>
     </View>
   );
 }
 
 export default function TabsLayout() {
+  const c = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: c.primary,
+        tabBarInactiveTintColor: c.tabInactive,
+        tabBarStyle: [styles.tabBar, { backgroundColor: c.surface, borderTopColor: c.border }],
         tabBarLabelStyle: styles.tabLabel,
       }}
     >
@@ -52,14 +52,8 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="add"
-        options={{
-          title: '',
-          tabBarButton: () => <AddButton />,
-        }}
-        listeners={{
-          // O botão custom já navega; impede a troca de aba padrão.
-          tabPress: (e) => e.preventDefault(),
-        }}
+        options={{ title: '', tabBarButton: () => <AddButton /> }}
+        listeners={{ tabPress: (e) => e.preventDefault() }}
       />
       <Tabs.Screen
         name="goals"
@@ -92,7 +86,6 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: ACTIVE,
     alignItems: 'center',
     justifyContent: 'center',
     elevation: 5,

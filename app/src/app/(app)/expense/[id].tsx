@@ -1,9 +1,9 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,8 +12,10 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useAuth } from '@/features/auth/AuthContext';
+import { CategoryIcon } from '@/features/categories/CategoryIcon';
+import { categoryImage } from '@/features/categories/categoryImages';
 import { useCategories } from '@/features/categories/api';
+import { useAuth } from '@/features/auth/AuthContext';
 import {
   useCreateExpense,
   useDeleteExpense,
@@ -22,12 +24,14 @@ import {
   type ExpenseInput,
 } from '@/features/expenses/api';
 import type { ExpenseStatus } from '@/types/database';
+import { useTheme } from '@/theme/useTheme';
 import { toISODate } from '@/utils/format';
 
 export default function ExpenseFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const isNew = id === 'new';
   const router = useRouter();
+  const c = useTheme();
   const { session } = useAuth();
   const userId = session?.user.id;
 
@@ -44,7 +48,6 @@ export default function ExpenseFormScreen() {
   const [status, setStatus] = useState<ExpenseStatus>('NOTPAY');
   const [recurrent, setRecurrent] = useState(false);
 
-  // Preenche o formulário quando estiver editando.
   useEffect(() => {
     if (existing) {
       setDescription(existing.description);
@@ -60,13 +63,12 @@ export default function ExpenseFormScreen() {
 
   async function handleSave() {
     const parsedPrice = Number(price.replace(',', '.'));
-    if (!description.trim()) return Alert.alert('Atenção', 'Informe uma descrição.');
-    if (!categoryId) return Alert.alert('Atenção', 'Escolha uma categoria.');
     if (!Number.isFinite(parsedPrice) || parsedPrice <= 0)
       return Alert.alert('Atenção', 'Informe um valor válido.');
+    if (!categoryId) return Alert.alert('Atenção', 'Escolha uma categoria.');
 
     const input: ExpenseInput = {
-      description: description.trim(),
+      description: description.trim(), // opcional
       price: parsedPrice,
       categoryId,
       dateTransaction: date,
@@ -105,57 +107,47 @@ export default function ExpenseFormScreen() {
   }
 
   if (!isNew && loadingExpense) {
-    return <ActivityIndicator style={{ marginTop: 40 }} size="large" />;
+    return <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />;
   }
 
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.label}>Descrição</Text>
-      <TextInput
-        style={styles.input}
-        value={description}
-        onChangeText={setDescription}
-        placeholder="Ex: Mercado"
-      />
+  const inputStyle = [styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.surface }];
 
-      <Text style={styles.label}>Valor (R$)</Text>
+  return (
+    <ScrollView
+      style={[styles.container, { backgroundColor: c.bg }]}
+      contentContainerStyle={styles.content}
+    >
+      {/* 1. Valor */}
+      <Text style={[styles.label, { color: c.text }]}>Valor (R$)</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         value={price}
         onChangeText={setPrice}
         keyboardType="decimal-pad"
         placeholder="0,00"
+        placeholderTextColor={c.textMuted}
       />
 
-      <Text style={styles.label}>Data</Text>
-      <TextInput
-        style={styles.input}
-        value={date}
-        onChangeText={setDate}
-        placeholder="AAAA-MM-DD"
-        autoCapitalize="none"
-      />
-
-      <Text style={styles.label}>Categoria</Text>
+      {/* 2. Categoria */}
+      <Text style={[styles.label, { color: c.text }]}>Categoria</Text>
       <View style={styles.categoryGrid}>
         {(categories ?? []).map((cat) => {
           const selected = cat.id === categoryId;
+          const img = categoryImage(cat.icon);
           return (
             <Pressable
               key={cat.id}
               onPress={() => setCategoryId(cat.id)}
               style={[
                 styles.categoryChip,
-                { borderColor: cat.color },
+                { borderColor: cat.color, backgroundColor: c.surface },
                 selected && { backgroundColor: cat.color },
               ]}
             >
-              <MaterialCommunityIcons
-                name={cat.icon as keyof typeof MaterialCommunityIcons.glyphMap}
-                size={16}
-                color={selected ? '#fff' : cat.color}
-              />
-              <Text style={[styles.categoryText, { color: selected ? '#fff' : '#374151' }]}>
+              {img ? (
+                <Image source={img} style={styles.chipImg} resizeMode="contain" />
+              ) : null}
+              <Text style={[styles.categoryText, { color: selected ? '#fff' : c.text }]}>
                 {cat.name}
               </Text>
             </Pressable>
@@ -163,32 +155,62 @@ export default function ExpenseFormScreen() {
         })}
       </View>
 
+      {/* 3. Data */}
+      <Text style={[styles.label, { color: c.text }]}>Data</Text>
+      <TextInput
+        style={inputStyle}
+        value={date}
+        onChangeText={setDate}
+        placeholder="AAAA-MM-DD"
+        placeholderTextColor={c.textMuted}
+        autoCapitalize="none"
+      />
+
+      {/* 4. Descrição (opcional) */}
+      <Text style={[styles.label, { color: c.text }]}>Descrição (opcional)</Text>
+      <TextInput
+        style={inputStyle}
+        value={description}
+        onChangeText={setDescription}
+        placeholder="Ex: Mercado da esquina"
+        placeholderTextColor={c.textMuted}
+      />
+
+      {/* 5. Já foi paga? */}
       <View style={styles.switchRow}>
-        <Text style={styles.label}>Já foi paga?</Text>
+        <Text style={[styles.label, { color: c.text }]}>Já foi paga?</Text>
         <Switch
           value={status === 'PAY'}
           onValueChange={(v) => setStatus(v ? 'PAY' : 'NOTPAY')}
+          trackColor={{ true: c.primary }}
         />
       </View>
 
+      {/* 6. Repete no próximo mês? */}
       {isNew && (
         <View style={styles.switchRow}>
-          <Text style={styles.label}>Repete no próximo mês?</Text>
-          <Switch value={recurrent} onValueChange={setRecurrent} />
+          <Text style={[styles.label, { color: c.text }]}>Repete no próximo mês?</Text>
+          <Switch value={recurrent} onValueChange={setRecurrent} trackColor={{ true: c.primary }} />
         </View>
       )}
 
-      <Pressable style={styles.saveBtn} onPress={handleSave} disabled={saving}>
+      <Pressable
+        style={[styles.saveBtn, { backgroundColor: c.primary }]}
+        onPress={handleSave}
+        disabled={saving}
+      >
         {saving ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={c.primaryContrast} />
         ) : (
-          <Text style={styles.saveText}>{isNew ? 'Adicionar despesa' : 'Salvar alterações'}</Text>
+          <Text style={[styles.saveText, { color: c.primaryContrast }]}>
+            {isNew ? 'Adicionar despesa' : 'Salvar alterações'}
+          </Text>
         )}
       </Pressable>
 
       {!isNew && (
         <Pressable style={styles.deleteBtn} onPress={handleDelete}>
-          <Text style={styles.deleteText}>Excluir</Text>
+          <Text style={[styles.deleteText, { color: c.danger }]}>Excluir</Text>
         </Pressable>
       )}
     </ScrollView>
@@ -196,12 +218,11 @@ export default function ExpenseFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1 },
   content: { padding: 20, gap: 6, paddingBottom: 60 },
-  label: { fontSize: 14, fontWeight: '600', color: '#374151', marginTop: 12 },
+  label: { fontSize: 14, fontWeight: '600', marginTop: 12 },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
@@ -217,6 +238,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
+  chipImg: { width: 18, height: 18 },
   categoryText: { fontSize: 13, fontWeight: '600' },
   switchRow: {
     flexDirection: 'row',
@@ -224,14 +246,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 8,
   },
-  saveBtn: {
-    backgroundColor: '#4f46e5',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  saveText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  saveBtn: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 24 },
+  saveText: { fontSize: 16, fontWeight: '700' },
   deleteBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  deleteText: { color: '#dc2626', fontSize: 15, fontWeight: '600' },
+  deleteText: { fontSize: 15, fontWeight: '600' },
 });

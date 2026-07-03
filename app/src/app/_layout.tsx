@@ -6,11 +6,13 @@ import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { queryClient } from '@/lib/queryClient';
+import { useTheme, useThemeName } from '@/theme/useTheme';
 
 function RootNavigator() {
   const { session, initializing } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const c = useTheme();
 
   useEffect(() => {
     if (initializing) return;
@@ -25,14 +27,14 @@ function RootNavigator() {
 
   if (initializing) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: c.bg }}>
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(app)" />
     </Stack>
@@ -40,11 +42,12 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  const themeName = useThemeName();
   return (
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <StatusBar style="auto" />
+          <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
           <RootNavigator />
         </AuthProvider>
       </QueryClientProvider>

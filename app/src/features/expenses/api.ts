@@ -4,17 +4,18 @@ import {
   useQueryClient,
   type QueryKey,
 } from '@tanstack/react-query';
+import type { DateRange } from '@/features/period/period';
 import { supabase } from '@/lib/supabase';
 import type { ExpenseRow, ExpenseStatus } from '@/types/database';
-import { monthRange, toISODate } from '@/utils/format';
+import { toISODate } from '@/utils/format';
 import { uuidv4 } from '@/utils/uuid';
 
 export interface ExpenseWithCategory extends ExpenseRow {
   category: { id: string; name: string; icon: string; color: string } | null;
 }
 
-export function expensesKey(monthISO: string): QueryKey {
-  return ['expenses', monthISO];
+export function expensesKey(range: DateRange | null): QueryKey {
+  return ['expenses', range ? `${range.start}:${range.end}` : 'all'];
 }
 
 export interface ExpenseInput {
@@ -26,21 +27,17 @@ export interface ExpenseInput {
   recurrent: boolean;
 }
 
-async function fetchExpensesOfMonth(reference: Date): Promise<ExpenseWithCategory[]> {
-  const { start, end } = monthRange(reference);
-  const { data, error } = await supabase
+async function fetchExpensesInRange(range: DateRange | null): Promise<ExpenseWithCategory[]> {
+  let query = supabase
     .from('expenses')
     .select('*, category:categories(id, name, icon, color)')
-    .gte('date_transaction', start)
-    .lte('date_transaction', end)
     .order('date_transaction', { ascending: false });
+  if (range) {
+    query = query.gte('date_transaction', range.start).lte('date_transaction', range.end);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as ExpenseWithCategory[];
-}
-
-/** Chave de mês (YYYY-MM) usada no cache. */
-export function monthCacheKey(reference: Date): string {
-  return toISODate(reference).slice(0, 7);
 }
 
 async function fetchExpenseById(id: string): Promise<ExpenseRow> {
@@ -57,10 +54,11 @@ export function useExpense(id: string | undefined) {
   });
 }
 
-export function useExpenses(reference: Date) {
+export function useExpensesByRange(range: DateRange | null, enabled = true) {
   return useQuery({
-    queryKey: expensesKey(monthCacheKey(reference)),
-    queryFn: () => fetchExpensesOfMonth(reference),
+    queryKey: expensesKey(range),
+    queryFn: () => fetchExpensesInRange(range),
+    enabled,
   });
 }
 

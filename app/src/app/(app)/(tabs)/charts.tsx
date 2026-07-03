@@ -1,9 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,20 +10,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
+import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { InsightCard } from '@/features/stats/InsightCard';
-import { useMonthStats } from '@/features/stats/api';
-import { formatCurrency, formatMonthLabel } from '@/utils/format';
+import { usePeriodStats } from '@/features/stats/api';
+import { useAppStore } from '@/store/appStore';
+import { useTheme } from '@/theme/useTheme';
+import { formatCurrency, formatDate } from '@/utils/format';
 
 const SCREEN_W = Dimensions.get('window').width;
 const CHART_W = SCREEN_W - 40;
 
 export default function ChartsScreen() {
-  const [reference, setReference] = useState(() => new Date());
-  const stats = useMonthStats(reference);
-
-  function shiftMonth(delta: number) {
-    setReference((prev) => new Date(prev.getFullYear(), prev.getMonth() + delta, 1));
-  }
+  const c = useTheme();
+  const period = useAppStore((s) => s.period);
+  const stats = usePeriodStats(period);
 
   const pieData = useMemo(
     () => stats.byCategory.map((s) => ({ value: s.value, color: s.color })),
@@ -33,60 +32,59 @@ export default function ChartsScreen() {
 
   const lineData = useMemo(
     () =>
-      stats.daily.map((p) => ({
+      stats.daily.map((p, i) => ({
         value: p.value,
-        label: p.day % 5 === 0 ? String(p.day) : '',
+        label: i % 5 === 0 ? String(p.day) : '',
       })),
     [stats.daily],
   );
 
-  const lineSpacing = Math.max(6, (CHART_W - 20) / Math.max(stats.daily.length, 1));
+  const lineSpacing = Math.max(6, (CHART_W - 44) / Math.max(stats.daily.length, 1));
+
+  const card = [styles.card, { backgroundColor: c.surface, borderColor: c.border }];
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Gráficos</Text>
+        <Text style={[styles.title, { color: c.text }]}>Gráficos</Text>
       </View>
 
-      <View style={styles.monthBar}>
-        <Pressable onPress={() => shiftMonth(-1)} hitSlop={8}>
-          <MaterialCommunityIcons name="chevron-left" size={28} color="#4f46e5" />
-        </Pressable>
-        <Text style={styles.monthLabel}>{formatMonthLabel(reference)}</Text>
-        <Pressable onPress={() => shiftMonth(1)} hitSlop={8}>
-          <MaterialCommunityIcons name="chevron-right" size={28} color="#4f46e5" />
-        </Pressable>
+      <View style={styles.filter}>
+        <PeriodFilter />
       </View>
 
       {stats.isLoading ? (
-        <ActivityIndicator style={{ marginTop: 40 }} size="large" />
+        <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />
       ) : stats.isEmpty ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons name="chart-line" size={48} color="#d1d5db" />
-          <Text style={styles.emptyText}>Sem despesas neste mês para analisar.</Text>
+          <MaterialCommunityIcons name="chart-line" size={48} color={c.border} />
+          <Text style={[styles.emptyText, { color: c.textMuted }]}>
+            Sem despesas neste período para analisar.
+          </Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* Insights */}
           <View style={styles.insights}>
             {stats.insights.map((i) => (
               <InsightCard key={i.id} insight={i} />
             ))}
           </View>
 
-          {/* Pizza por categoria */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Gasto por categoria</Text>
+          <View style={card}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Gasto por categoria</Text>
             <View style={styles.pieRow}>
               <PieChart
                 data={pieData}
                 donut
                 radius={80}
                 innerRadius={52}
+                innerCircleColor={c.surface}
                 centerLabelComponent={() => (
                   <View style={{ alignItems: 'center' }}>
-                    <Text style={styles.pieCenterLabel}>Total</Text>
-                    <Text style={styles.pieCenterValue}>{formatCurrency(stats.total)}</Text>
+                    <Text style={[styles.pieCenterLabel, { color: c.textMuted }]}>Total</Text>
+                    <Text style={[styles.pieCenterValue, { color: c.text }]}>
+                      {formatCurrency(stats.total)}
+                    </Text>
                   </View>
                 )}
               />
@@ -95,22 +93,25 @@ export default function ChartsScreen() {
               {stats.byCategory.map((s) => (
                 <View key={s.id} style={styles.legendRow}>
                   <View style={[styles.dot, { backgroundColor: s.color }]} />
-                  <Text style={styles.legendName} numberOfLines={1}>
+                  <Text style={[styles.legendName, { color: c.text }]} numberOfLines={1}>
                     {s.name}
                   </Text>
-                  <Text style={styles.legendPct}>{s.pct.toFixed(0)}%</Text>
-                  <Text style={styles.legendValue}>{formatCurrency(s.value)}</Text>
+                  <Text style={[styles.legendPct, { color: c.textMuted }]}>
+                    {s.pct.toFixed(0)}%
+                  </Text>
+                  <Text style={[styles.legendValue, { color: c.text }]}>
+                    {formatCurrency(s.value)}
+                  </Text>
                 </View>
               ))}
             </View>
           </View>
 
-          {/* Linha: gasto por dia */}
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Gasto por dia</Text>
+          <View style={card}>
+            <Text style={[styles.cardTitle, { color: c.text }]}>Gasto por dia</Text>
             {stats.peakDay && (
-              <Text style={styles.peakText}>
-                Pico no dia {stats.peakDay.day}: {formatCurrency(stats.peakDay.value)}
+              <Text style={[styles.peakText, { color: c.textMuted }]}>
+                Pico em {formatDate(stats.peakDay.dateISO)}: {formatCurrency(stats.peakDay.value)}
               </Text>
             )}
             <View style={styles.lineWrap}>
@@ -121,19 +122,19 @@ export default function ChartsScreen() {
                 spacing={lineSpacing}
                 initialSpacing={8}
                 thickness={2}
-                color="#4f46e5"
+                color={c.primary}
                 hideDataPoints
                 curved
                 areaChart
-                startFillColor="#818cf8"
-                endFillColor="#eef2ff"
-                startOpacity={0.4}
-                endOpacity={0.05}
+                startFillColor={c.primary}
+                endFillColor={c.surface}
+                startOpacity={0.35}
+                endOpacity={0.02}
                 hideYAxisText
                 yAxisThickness={0}
-                xAxisColor="#e5e7eb"
-                rulesColor="#f3f4f6"
-                xAxisLabelTextStyle={styles.axisLabel}
+                xAxisColor={c.border}
+                rulesColor={c.border}
+                xAxisLabelTextStyle={[styles.axisLabel, { color: c.textMuted }]}
                 noOfSections={3}
               />
             </View>
@@ -147,50 +148,26 @@ export default function ChartsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  header: { paddingHorizontal: 20, paddingTop: 8 },
-  title: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  monthBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 16,
-    paddingVertical: 12,
-  },
-  monthLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-    textTransform: 'capitalize',
-  },
+  container: { flex: 1 },
+  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
+  title: { fontSize: 24, fontWeight: '800' },
+  filter: { paddingBottom: 12 },
   scroll: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
   insights: { gap: 10 },
-  card: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#f3f4f6',
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    elevation: 1,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
+  cardTitle: { fontSize: 16, fontWeight: '700' },
   pieRow: { alignItems: 'center', paddingVertical: 8 },
-  pieCenterLabel: { fontSize: 12, color: '#6b7280' },
-  pieCenterValue: { fontSize: 15, fontWeight: '800', color: '#111827' },
+  pieCenterLabel: { fontSize: 12 },
+  pieCenterValue: { fontSize: 15, fontWeight: '800' },
   legend: { gap: 8 },
   legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   dot: { width: 12, height: 12, borderRadius: 6 },
-  legendName: { flex: 1, fontSize: 14, color: '#374151' },
-  legendPct: { fontSize: 13, color: '#9ca3af', width: 42, textAlign: 'right' },
-  legendValue: { fontSize: 14, fontWeight: '600', color: '#111827', width: 96, textAlign: 'right' },
-  peakText: { fontSize: 13, color: '#6b7280' },
+  legendName: { flex: 1, fontSize: 14 },
+  legendPct: { fontSize: 13, width: 42, textAlign: 'right' },
+  legendValue: { fontSize: 14, fontWeight: '600', width: 96, textAlign: 'right' },
+  peakText: { fontSize: 13 },
   lineWrap: { marginTop: 4, overflow: 'hidden' },
-  axisLabel: { fontSize: 10, color: '#9ca3af' },
+  axisLabel: { fontSize: 10 },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 40 },
-  emptyText: { color: '#6b7280', fontSize: 15, textAlign: 'center' },
+  emptyText: { fontSize: 15, textAlign: 'center' },
 });
