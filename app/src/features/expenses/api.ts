@@ -124,7 +124,10 @@ async function toggleStatus(id: string, status: ExpenseStatus): Promise<void> {
 
 function useInvalidateExpenses() {
   const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: ['expenses'] });
+  return () => {
+    qc.invalidateQueries({ queryKey: ['expenses'] });
+    qc.invalidateQueries({ queryKey: ['category-usage'] });
+  };
 }
 
 export function useCreateExpense(userId: string) {

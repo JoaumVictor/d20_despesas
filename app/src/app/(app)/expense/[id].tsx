@@ -1,9 +1,9 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,9 +12,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { CategoryIcon } from '@/features/categories/CategoryIcon';
-import { categoryImage } from '@/features/categories/categoryImages';
-import { useCategories } from '@/features/categories/api';
+import { CalendarModal } from '@/components/CalendarModal';
+import { CategorySelect } from '@/features/categories/CategorySelect';
+import { useCategories, useCategoryUsage } from '@/features/categories/api';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   useCreateExpense,
@@ -25,7 +25,7 @@ import {
 } from '@/features/expenses/api';
 import type { ExpenseStatus } from '@/types/database';
 import { useTheme } from '@/theme/useTheme';
-import { toISODate } from '@/utils/format';
+import { centsToBRL, digitsToCents, formatDate, toISODate } from '@/utils/format';
 
 export default function ExpenseFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -36,22 +36,24 @@ export default function ExpenseFormScreen() {
   const userId = session?.user.id;
 
   const { data: categories } = useCategories(userId);
+  const { data: usage } = useCategoryUsage(userId);
   const { data: existing, isLoading: loadingExpense } = useExpense(id);
   const createExpense = useCreateExpense(userId ?? '');
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
 
+  const [amountCents, setAmountCents] = useState(0);
   const [description, setDescription] = useState('');
-  const [price, setPrice] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [date, setDate] = useState(() => toISODate(new Date()));
   const [status, setStatus] = useState<ExpenseStatus>('NOTPAY');
   const [recurrent, setRecurrent] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (existing) {
+      setAmountCents(Math.round(existing.price * 100));
       setDescription(existing.description);
-      setPrice(String(existing.price));
       setCategoryId(existing.category_id);
       setDate(existing.date_transaction.slice(0, 10));
       setStatus(existing.status);
@@ -62,14 +64,12 @@ export default function ExpenseFormScreen() {
   const saving = createExpense.isPending || updateExpense.isPending;
 
   async function handleSave() {
-    const parsedPrice = Number(price.replace(',', '.'));
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0)
-      return Alert.alert('Atenção', 'Informe um valor válido.');
+    if (amountCents <= 0) return Alert.alert('Atenção', 'Informe um valor válido.');
     if (!categoryId) return Alert.alert('Atenção', 'Escolha uma categoria.');
 
     const input: ExpenseInput = {
-      description: description.trim(), // opcional
-      price: parsedPrice,
+      description: description.trim(),
+      price: amountCents / 100,
       categoryId,
       dateTransaction: date,
       status,
@@ -77,11 +77,8 @@ export default function ExpenseFormScreen() {
     };
 
     try {
-      if (isNew) {
-        await createExpense.mutateAsync(input);
-      } else {
-        await updateExpense.mutateAsync({ id: id as string, input });
-      }
+      if (isNew) await createExpense.mutateAsync(input);
+      else await updateExpense.mutateAsync({ id: id as string, input });
       router.back();
     } catch (err) {
       Alert.alert('Erro ao salvar', err instanceof Error ? err.message : 'Tente novamente.');
@@ -110,73 +107,54 @@ export default function ExpenseFormScreen() {
     return <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />;
   }
 
-  const inputStyle = [styles.input, { borderColor: c.border, color: c.text, backgroundColor: c.surface }];
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: c.bg }]}
       contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
     >
-      {/* 1. Valor */}
-      <Text style={[styles.label, { color: c.text }]}>Valor (R$)</Text>
+      {/* 1. Valor — destaque, centralizado, foco automático */}
       <TextInput
-        style={inputStyle}
-        value={price}
-        onChangeText={setPrice}
-        keyboardType="decimal-pad"
-        placeholder="0,00"
-        placeholderTextColor={c.textMuted}
+        style={[styles.amount, { color: c.primary }]}
+        value={centsToBRL(amountCents)}
+        onChangeText={(t) => setAmountCents(digitsToCents(t))}
+        keyboardType="number-pad"
+        autoFocus={isNew}
+        selectionColor={c.primary}
       />
 
-      {/* 2. Categoria */}
+      {/* 2. Categoria — select por mais usadas */}
       <Text style={[styles.label, { color: c.text }]}>Categoria</Text>
-      <View style={styles.categoryGrid}>
-        {(categories ?? []).map((cat) => {
-          const selected = cat.id === categoryId;
-          const img = categoryImage(cat.icon);
-          return (
-            <Pressable
-              key={cat.id}
-              onPress={() => setCategoryId(cat.id)}
-              style={[
-                styles.categoryChip,
-                { borderColor: cat.color, backgroundColor: c.surface },
-                selected && { backgroundColor: cat.color },
-              ]}
-            >
-              {img ? (
-                <Image source={img} style={styles.chipImg} resizeMode="contain" />
-              ) : null}
-              <Text style={[styles.categoryText, { color: selected ? '#fff' : c.text }]}>
-                {cat.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {/* 3. Data */}
-      <Text style={[styles.label, { color: c.text }]}>Data</Text>
-      <TextInput
-        style={inputStyle}
-        value={date}
-        onChangeText={setDate}
-        placeholder="AAAA-MM-DD"
-        placeholderTextColor={c.textMuted}
-        autoCapitalize="none"
+      <CategorySelect
+        categories={categories ?? []}
+        usage={usage ?? {}}
+        value={categoryId}
+        onChange={setCategoryId}
       />
 
-      {/* 4. Descrição (opcional) */}
+      {/* 3. Data — calendário */}
+      <Text style={[styles.label, { color: c.text }]}>Data</Text>
+      <Pressable
+        onPress={() => setCalendarOpen(true)}
+        style={[styles.dateField, { borderColor: c.border, backgroundColor: c.surface }]}
+      >
+        <Text style={[styles.dateText, { color: c.text }]}>{formatDate(date)}</Text>
+        <MaterialCommunityIcons name="calendar-month-outline" size={22} color={c.primary} />
+      </Pressable>
+
+      {/* 4. Descrição — text area (opcional) */}
       <Text style={[styles.label, { color: c.text }]}>Descrição (opcional)</Text>
       <TextInput
-        style={inputStyle}
+        style={[styles.textarea, { borderColor: c.border, color: c.text, backgroundColor: c.surface }]}
         value={description}
         onChangeText={setDescription}
-        placeholder="Ex: Mercado da esquina"
+        placeholder="Ex: Mercado da esquina, dividido com fulano..."
         placeholderTextColor={c.textMuted}
+        multiline
+        numberOfLines={4}
+        textAlignVertical="top"
       />
 
-      {/* 5. Já foi paga? */}
       <View style={styles.switchRow}>
         <Text style={[styles.label, { color: c.text }]}>Já foi paga?</Text>
         <Switch
@@ -186,7 +164,6 @@ export default function ExpenseFormScreen() {
         />
       </View>
 
-      {/* 6. Repete no próximo mês? */}
       {isNew && (
         <View style={styles.switchRow}>
           <Text style={[styles.label, { color: c.text }]}>Repete no próximo mês?</Text>
@@ -213,6 +190,13 @@ export default function ExpenseFormScreen() {
           <Text style={[styles.deleteText, { color: c.danger }]}>Excluir</Text>
         </Pressable>
       )}
+
+      <CalendarModal
+        visible={calendarOpen}
+        value={date}
+        onSelect={setDate}
+        onClose={() => setCalendarOpen(false)}
+      />
     </ScrollView>
   );
 }
@@ -220,26 +204,32 @@ export default function ExpenseFormScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 20, gap: 6, paddingBottom: 60 },
+  amount: {
+    fontSize: 44,
+    fontWeight: '800',
+    textAlign: 'center',
+    paddingVertical: 16,
+    marginBottom: 8,
+  },
   label: { fontSize: 14, fontWeight: '600', marginTop: 12 },
-  input: {
+  dateField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
+  },
+  dateText: { fontSize: 16 },
+  textarea: {
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
     fontSize: 16,
+    minHeight: 96,
   },
-  categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
-  categoryChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1.5,
-    borderRadius: 20,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  chipImg: { width: 18, height: 18 },
-  categoryText: { fontSize: 13, fontWeight: '600' },
   switchRow: {
     flexDirection: 'row',
     alignItems: 'center',

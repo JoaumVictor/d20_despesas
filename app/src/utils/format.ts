@@ -6,6 +6,17 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
+/** Extrai só os dígitos de um texto e interpreta como centavos. */
+export function digitsToCents(text: string): number {
+  const digits = text.replace(/\D/g, '');
+  return digits ? parseInt(digits, 10) : 0;
+}
+
+/** Formata centavos (inteiro) como moeda BRL. */
+export function centsToBRL(cents: number): string {
+  return formatCurrency(cents / 100);
+}
+
 /** Formata uma data ISO (YYYY-MM-DD) como dd/mm/yyyy. */
 export function formatDate(iso: string): string {
   const [y, m, d] = iso.slice(0, 10).split('-');

@@ -39,3 +39,24 @@ export function useCategories(userId: string | undefined) {
     enabled: Boolean(userId),
   });
 }
+
+export const categoryUsageKey = ['category-usage'] as const;
+
+/** Nº de despesas por categoria (para ordenar por mais usadas). */
+async function fetchCategoryUsage(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from('expenses').select('category_id');
+  if (error) throw error;
+  const counts: Record<string, number> = {};
+  for (const row of (data ?? []) as { category_id: string }[]) {
+    counts[row.category_id] = (counts[row.category_id] ?? 0) + 1;
+  }
+  return counts;
+}
+
+export function useCategoryUsage(userId: string | undefined) {
+  return useQuery({
+    queryKey: categoryUsageKey,
+    queryFn: fetchCategoryUsage,
+    enabled: Boolean(userId),
+  });
+}
