@@ -48,5 +48,5 @@ export function CategoryIcon({ iconKey, color = "#9ca3af", size = 42 }: Props) {
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  wrap: { alignItems: "center", justifyContent: "center" },
 });
