@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { CategoryIcon } from '@/features/categories/CategoryIcon';
+import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/theme/useTheme';
 import { formatCurrency, formatDate } from '@/utils/format';
 import type { ExpenseWithCategory } from './api';
@@ -13,6 +14,7 @@ interface Props {
 
 export function ExpenseItem({ expense, onPress, onToggleStatus }: Props) {
   const c = useTheme();
+  const showPaidStatus = useAppStore((s) => s.showPaidStatus);
   const color = expense.category?.color ?? c.textMuted;
   const paid = expense.status === 'PAY';
   const label = expense.description?.trim() || expense.category?.name || 'Despesa';
@@ -32,16 +34,18 @@ export function ExpenseItem({ expense, onPress, onToggleStatus }: Props) {
 
       <View style={styles.right}>
         <Text style={[styles.price, { color: c.text }]}>{formatCurrency(expense.price)}</Text>
-        <Pressable onPress={onToggleStatus} hitSlop={8} style={styles.statusBtn}>
-          <MaterialCommunityIcons
-            name={paid ? 'check-circle' : 'circle-outline'}
-            size={22}
-            color={paid ? c.success : c.tabInactive}
-          />
-          <Text style={[styles.statusText, { color: paid ? c.success : c.tabInactive }]}>
-            {paid ? 'Paga' : 'Em aberto'}
-          </Text>
-        </Pressable>
+        {showPaidStatus && (
+          <Pressable onPress={onToggleStatus} hitSlop={8} style={styles.statusBtn}>
+            <MaterialCommunityIcons
+              name={paid ? 'check-circle' : 'circle-outline'}
+              size={22}
+              color={paid ? c.success : c.tabInactive}
+            />
+            <Text style={[styles.statusText, { color: paid ? c.success : c.tabInactive }]}>
+              {paid ? 'Paga' : 'Em aberto'}
+            </Text>
+          </Pressable>
+        )}
       </View>
     </Pressable>
   );

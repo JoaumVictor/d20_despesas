@@ -155,25 +155,57 @@ const goalProgress: Generator = ({ expenses, goals, now }) => {
 /* Geradores HISTÓRICOS (independem do filtro global)                   */
 /* ------------------------------------------------------------------ */
 
-const yearByCategory: Generator = ({ expenses, now }) => {
-  const year = String(now.getFullYear());
-  const byCat = new Map<string, number>();
+/** Categoria com o menor gasto do ano (entre as que tiveram gasto), comparada ao ano passado. */
+const categoryYearlyLow: Generator = ({ expenses, now }) => {
+  const year = now.getFullYear();
+  const curByCat = new Map<string, number>();
+  const prevByCat = new Map<string, number>();
   for (const e of expenses) {
-    if (!e.date_transaction.startsWith(year)) continue;
-    byCat.set(catName(e), (byCat.get(catName(e)) ?? 0) + e.price);
+    const y = Number(e.date_transaction.slice(0, 4));
+    if (y === year) curByCat.set(catName(e), (curByCat.get(catName(e)) ?? 0) + e.price);
+    else if (y === year - 1) prevByCat.set(catName(e), (prevByCat.get(catName(e)) ?? 0) + e.price);
   }
-  return [...byCat.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([name, total], i) => ({
-      id: `year-cat-${name}`,
-      icon: 'calendar-star',
+  if (curByCat.size < 2) return []; // "menor" só faz sentido com 2+ categorias
+  const [lowName, lowTotal] = [...curByCat.entries()].sort((a, b) => a[1] - b[1])[0];
+  const prevTotal = prevByCat.get(lowName) ?? 0;
+  return [
+    {
+      id: `year-low-${lowName}`,
+      icon: 'trending-down',
       tone: 'neutral' as const,
-      title: `${name} em ${year}`,
-      text: `Este ano você já gastou ${formatCurrency(total)} com ${name}.`,
+      title: `Menor gasto do ano: ${lowName}`,
+      text:
+        prevTotal > 0
+          ? `Apenas ${formatCurrency(lowTotal)} no total este ano. Ano passado você gastou ${formatCurrency(prevTotal)} com ${lowName}.`
+          : `Apenas ${formatCurrency(lowTotal)} no total com ${lowName} este ano.`,
       scopes: ['graficos'] as InsightScope[],
-      priority: 40 - i,
-    }));
+      priority: 40,
+    },
+  ];
+};
+
+/** Média mensal de gasto na categoria com mais histórico. */
+const categoryMonthlyAverage: Generator = ({ expenses }) => {
+  const matrix = categoryMonthMatrix(expenses);
+  let best: { name: string; avg: number; months: number } | null = null;
+  for (const [, { name, months }] of matrix) {
+    if (months.size < 2) continue;
+    const total = [...months.values()].reduce((s, v) => s + v, 0);
+    const avg = total / months.size;
+    if (!best || months.size > best.months) best = { name, avg, months: months.size };
+  }
+  if (!best) return [];
+  return [
+    {
+      id: `monthly-avg-${best.name}`,
+      icon: 'calculator-variant-outline',
+      tone: 'neutral' as const,
+      title: `Média mensal em ${best.name}`,
+      text: `Você gasta em média ${formatCurrency(best.avg)}/mês com ${best.name}.`,
+      scopes: ['graficos'] as InsightScope[],
+      priority: 38,
+    },
+  ];
 };
 
 const recordMonth: Generator = ({ expenses, now }) => {
@@ -378,6 +410,84 @@ const trend3m: Generator = ({ expenses, now }) => {
   return items.slice(0, 2);
 };
 
+/** Compra deste mês bem acima da média histórica da própria categoria. */
+const unusualExpense: Generator = ({ expenses, now }) => {
+  const mk = monthKeyOf(now);
+  const historyByCat = new Map<string, number[]>();
+  const thisMonthByCat = new Map<string, ExpenseWithCategory[]>();
+
+  for (const e of expenses) {
+    const k = e.category_id;
+    const isThisMonth = e.date_transaction.slice(0, 7) === mk;
+    if (isThisMonth) {
+      const arr = thisMonthByCat.get(k) ?? [];
+      arr.push(e);
+      thisMonthByCat.set(k, arr);
+    } else {
+      const arr = historyByCat.get(k) ?? [];
+      arr.push(e.price);
+      historyByCat.set(k, arr);
+    }
+  }
+
+  let best: { e: ExpenseWithCategory; avg: number; ratio: number } | null = null;
+  for (const [catId, monthExpenses] of thisMonthByCat) {
+    const history = historyByCat.get(catId);
+    if (!history || history.length < 3) continue;
+    const avg = history.reduce((s, v) => s + v, 0) / history.length;
+    if (avg <= 0) continue;
+    for (const e of monthExpenses) {
+      const ratio = e.price / avg;
+      if (ratio >= 2 && (!best || ratio > best.ratio)) best = { e, avg, ratio };
+    }
+  }
+  if (!best) return [];
+  const label = best.e.description?.trim() || catName(best.e);
+  return [
+    {
+      id: `unusual-${best.e.id}`,
+      icon: 'alert-decagram-outline',
+      tone: 'warning' as const,
+      title: `Gasto incomum em ${catName(best.e)}`,
+      text: `${label} custou ${formatCurrency(best.e.price)} — bem acima da sua média de ${formatCurrency(best.avg)} nessa categoria.`,
+      scopes: ['graficos', 'despesas'] as InsightScope[],
+      priority: 60,
+    },
+  ];
+};
+
+/** Preço médio da despesa (por descrição) que mais se repete no histórico. */
+const priceHistory: Generator = ({ expenses }) => {
+  const byDesc = new Map<string, { label: string; prices: number[] }>();
+  for (const e of expenses) {
+    const desc = e.description?.trim();
+    if (!desc) continue;
+    const key = desc.toLocaleLowerCase('pt-BR');
+    const g = byDesc.get(key) ?? { label: desc, prices: [] };
+    g.prices.push(e.price);
+    g.label = desc;
+    byDesc.set(key, g);
+  }
+  let best: { label: string; avg: number; count: number } | null = null;
+  for (const [, g] of byDesc) {
+    if (g.prices.length < 3) continue;
+    const avg = g.prices.reduce((s, v) => s + v, 0) / g.prices.length;
+    if (!best || g.prices.length > best.count) best = { label: g.label, avg, count: g.prices.length };
+  }
+  if (!best) return [];
+  return [
+    {
+      id: `price-history-${best.label}`,
+      icon: 'receipt-text-outline',
+      tone: 'neutral' as const,
+      title: `Quanto você paga em ${best.label}`,
+      text: `Você geralmente paga ${formatCurrency(best.avg)} em "${best.label}" (${best.count} lançamentos).`,
+      scopes: ['graficos'] as InsightScope[],
+      priority: 20,
+    },
+  ];
+};
+
 const paidRatio: Generator = ({ expenses, now }) => {
   const mk = monthKeyOf(now);
   let open = 0;
@@ -405,7 +515,10 @@ const paidRatio: Generator = ({ expenses, now }) => {
 
 const GENERATORS: Generator[] = [
   goalProgress,
-  yearByCategory,
+  unusualExpense,
+  categoryYearlyLow,
+  categoryMonthlyAverage,
+  priceHistory,
   recordMonth,
   seasonality,
   monthVsPrevious,

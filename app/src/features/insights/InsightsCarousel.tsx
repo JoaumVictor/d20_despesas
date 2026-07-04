@@ -37,16 +37,36 @@ function toneColors(tone: InsightItem['tone'], c: ThemeColors) {
   }
 }
 
+/** Card "solto" vindo de fora do engine (ex.: stats/api.ts, período-consciente). */
+export interface ExternalInsight {
+  id: string;
+  icon: string;
+  tone: 'up' | 'down' | 'neutral';
+  title: string;
+  text: string;
+}
+
 interface Props {
   scope: InsightScope;
   /** limita a quantidade de cards (ex.: 5 na tela de Despesas) */
   max?: number;
+  /** cards extras (ex.: insights do período ativo) mesclados por prioridade */
+  extraItems?: ExternalInsight[];
 }
 
 /** Carrossel horizontal de insights — reutilizável em qualquer tela. */
-export function InsightsCarousel({ scope, max }: Props) {
+export function InsightsCarousel({ scope, max, extraItems }: Props) {
   const c = useTheme();
-  const all = useInsights(scope);
+  const scoped = useInsights(scope);
+  const all = useMemo(() => {
+    if (!extraItems || extraItems.length === 0) return scoped;
+    const extras: InsightItem[] = extraItems.map((e, i) => ({
+      ...e,
+      scopes: [scope],
+      priority: 80 - i, // aparecem entre os mais relevantes, preservando a ordem entre si
+    }));
+    return [...extras, ...scoped].sort((a, b) => b.priority - a.priority);
+  }, [scoped, extraItems, scope]);
   const items = max ? all.slice(0, max) : all;
   const [page, setPage] = useState(0);
   const listRef = useRef<FlatList<InsightItem>>(null);

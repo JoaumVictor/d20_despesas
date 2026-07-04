@@ -1,10 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -13,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { CategoryIcon } from '@/features/categories/CategoryIcon';
 import { useCategories, useCategoryUsage } from '@/features/categories/api';
-import { useExpensesByRange } from '@/features/expenses/api';
+import { useCreateExpense, useExpensesByRange } from '@/features/expenses/api';
 import {
   goalsForMonth,
   useCreateGoal,
@@ -25,8 +26,11 @@ import {
 import { GoalFormModal } from '@/features/goals/GoalFormModal';
 import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { monthSpendByCategory } from '@/features/insights/engine';
+import { detectRecurringSuggestions } from '@/features/suggestions/engine';
+import { SuggestionCard } from '@/features/suggestions/SuggestionCard';
+import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/theme/useTheme';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, toISODate } from '@/utils/format';
 
 function currentMonthKey(): string {
   const now = new Date();
@@ -38,14 +42,35 @@ export default function GoalsScreen() {
   const { session } = useAuth();
   const userId = session?.user.id;
 
-  const { data: goals, isLoading } = useGoals(userId);
-  const { data: categories } = useCategories(userId);
-  const { data: usage } = useCategoryUsage(userId);
-  const { data: allExpenses } = useExpensesByRange(null);
+  const {
+    data: goals,
+    isLoading,
+    refetch: refetchGoals,
+    isRefetching: isRefetchingGoals,
+  } = useGoals(userId);
+  const { data: categories, refetch: refetchCategories } = useCategories(userId);
+  const { data: usage, refetch: refetchUsage } = useCategoryUsage(userId);
+  const {
+    data: allExpenses,
+    refetch: refetchExpenses,
+    isRefetching: isRefetchingExpenses,
+  } = useExpensesByRange(null);
+
+  const refreshing = isRefetchingGoals || isRefetchingExpenses;
+  const onRefresh = useCallback(() => {
+    refetchGoals();
+    refetchCategories();
+    refetchUsage();
+    refetchExpenses();
+  }, [refetchGoals, refetchCategories, refetchUsage, refetchExpenses]);
 
   const createGoal = useCreateGoal(userId ?? '');
   const updateGoal = useUpdateGoal();
   const deleteGoal = useDeleteGoal();
+  const createExpense = useCreateExpense(userId ?? '');
+
+  const dismissedSuggestions = useAppStore((s) => s.dismissedSuggestions);
+  const dismissSuggestion = useAppStore((s) => s.dismissSuggestion);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<GoalWithCategory | null>(null);
@@ -53,6 +78,31 @@ export default function GoalsScreen() {
   const mk = currentMonthKey();
   const monthGoals = useMemo(() => goalsForMonth(goals ?? [], mk), [goals, mk]);
   const spend = useMemo(() => monthSpendByCategory(allExpenses ?? [], mk), [allExpenses, mk]);
+
+  const suggestions = useMemo(
+    () =>
+      detectRecurringSuggestions(allExpenses ?? [], new Date(), new Set(dismissedSuggestions)),
+    [allExpenses, dismissedSuggestions],
+  );
+
+  async function confirmSuggestion(s: (typeof suggestions)[number]) {
+    try {
+      await createExpense.mutateAsync({
+        description: s.description,
+        price: s.amount,
+        categoryId: s.categoryId,
+        dateTransaction: toISODate(new Date()),
+        status: 'PAY',
+        recurrent: false,
+      });
+      Alert.alert(
+        'Despesa criada',
+        `Despesa de ${s.description} foi criada no valor ${formatCurrency(s.amount)} 🚀`,
+      );
+    } catch (err) {
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Tente novamente.');
+    }
+  }
 
   function openNew() {
     setEditing(null);
@@ -96,10 +146,30 @@ export default function GoalsScreen() {
           data={monthGoals}
           keyExtractor={(g) => g.id}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={c.primary} />
+          }
           ListHeaderComponent={
-            <View style={styles.carousel}>
-              <InsightsCarousel scope="metas" />
-            </View>
+            <>
+              <View style={styles.carousel}>
+                <InsightsCarousel scope="metas" />
+              </View>
+              {suggestions.length > 0 && (
+                <View style={styles.suggestions}>
+                  <Text style={[styles.suggestionsTitle, { color: c.textMuted }]}>
+                    Sugestões
+                  </Text>
+                  {suggestions.map((s) => (
+                    <SuggestionCard
+                      key={s.key}
+                      suggestion={s}
+                      onConfirm={() => confirmSuggestion(s)}
+                      onDismiss={() => dismissSuggestion(s.key)}
+                    />
+                  ))}
+                </View>
+              )}
+            </>
           }
           renderItem={({ item }) => {
             const spent = spend.get(item.category_id) ?? 0;
@@ -204,6 +274,13 @@ const styles = StyleSheet.create({
   },
   addText: { fontSize: 14, fontWeight: '700' },
   carousel: { marginBottom: 14, marginHorizontal: -20 },
+  suggestions: { marginBottom: 16 },
+  suggestionsTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
   listContent: { paddingHorizontal: 20, paddingBottom: 24 },
   goalCard: { borderWidth: 1, borderRadius: 16, padding: 14, marginBottom: 12, gap: 10 },
   goalTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },

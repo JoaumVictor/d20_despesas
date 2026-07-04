@@ -27,15 +27,22 @@ export function CategoryIcon({ iconKey, color = "#9ca3af", size = 42 }: Props) {
       ]}
     >
       {source ? (
-        <Image
-          source={source}
-          style={{
-            width: size,
-            height: size,
-            transform: [{ scale: CATEGORY_ICON_ZOOM }],
-          }}
-          resizeMode="contain"
-        />
+        <View
+          style={[
+            styles.imageBg,
+            { width: size - 10, height: size - 10, borderRadius: size / 2 },
+          ]}
+        >
+          <Image
+            source={source}
+            style={{
+              width: size,
+              height: size,
+              transform: [{ scale: CATEGORY_ICON_ZOOM }],
+            }}
+            resizeMode="contain"
+          />
+        </View>
       ) : (
         <MaterialCommunityIcons
           name={"help-circle" as never}
@@ -49,4 +56,9 @@ export function CategoryIcon({ iconKey, color = "#9ca3af", size = 42 }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: "center", justifyContent: "center" },
+  imageBg: {
+    backgroundColor: "#ffffff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useAppStore, type ThemeMode } from '@/store/appStore';
@@ -16,6 +16,10 @@ export default function SettingsScreen() {
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
+  const showPaidStatus = useAppStore((s) => s.showPaidStatus);
+  const setShowPaidStatus = useAppStore((s) => s.setShowPaidStatus);
+  const showAlertCards = useAppStore((s) => s.showAlertCards);
+  const setShowAlertCards = useAppStore((s) => s.setShowAlertCards);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
@@ -47,6 +51,38 @@ export default function SettingsScreen() {
               </Pressable>
             );
           })}
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Preferências</Text>
+
+        <View style={[styles.prefRow, { borderTopColor: c.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.prefTitle, { color: c.text }]}>Controlar pago/não pago</Text>
+            <Text style={[styles.prefHint, { color: c.textMuted }]}>
+              Desligue se você só quer anotar gastos, sem marcar status.
+            </Text>
+          </View>
+          <Switch
+            value={showPaidStatus}
+            onValueChange={setShowPaidStatus}
+            trackColor={{ true: c.primary }}
+          />
+        </View>
+
+        <View style={[styles.prefRow, { borderTopColor: c.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.prefTitle, { color: c.text }]}>Ver cards de alertas</Text>
+            <Text style={[styles.prefHint, { color: c.textMuted }]}>
+              Mostra avisos de metas na tela de Despesas.
+            </Text>
+          </View>
+          <Switch
+            value={showAlertCards}
+            onValueChange={setShowAlertCards}
+            trackColor={{ true: c.primary }}
+          />
         </View>
       </View>
 
@@ -83,6 +119,15 @@ const styles = StyleSheet.create({
     borderRadius: 9,
   },
   segmentText: { fontSize: 14, fontWeight: '600' },
+  prefRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+  },
+  prefTitle: { fontSize: 15, fontWeight: '600' },
+  prefHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

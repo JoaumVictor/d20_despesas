@@ -26,6 +26,7 @@ import {
 } from '@/features/expenses/api';
 import { goalsForMonth, useGoals } from '@/features/goals/api';
 import { monthSpendByCategory } from '@/features/insights/engine';
+import { useAppStore } from '@/store/appStore';
 import type { ExpenseStatus } from '@/types/database';
 import { useTheme } from '@/theme/useTheme';
 import { centsToBRL, digitsToCents, formatCurrency, formatDate, toISODate } from '@/utils/format';
@@ -37,6 +38,7 @@ export default function ExpenseFormScreen() {
   const c = useTheme();
   const { session } = useAuth();
   const userId = session?.user.id;
+  const showPaidStatus = useAppStore((s) => s.showPaidStatus);
 
   const { data: categories } = useCategories(userId);
   const { data: usage } = useCategoryUsage(userId);
@@ -90,7 +92,7 @@ export default function ExpenseFormScreen() {
       price: amountCents / 100,
       categoryId,
       dateTransaction: date,
-      status,
+      status: showPaidStatus ? status : 'PAY',
       recurrent,
     };
 
@@ -182,14 +184,16 @@ export default function ExpenseFormScreen() {
         textAlignVertical="top"
       />
 
-      <View style={styles.switchRow}>
-        <Text style={[styles.label, { color: c.text }]}>Já foi paga?</Text>
-        <Switch
-          value={status === 'PAY'}
-          onValueChange={(v) => setStatus(v ? 'PAY' : 'NOTPAY')}
-          trackColor={{ true: c.primary }}
-        />
-      </View>
+      {showPaidStatus && (
+        <View style={styles.switchRow}>
+          <Text style={[styles.label, { color: c.text }]}>Já foi paga?</Text>
+          <Switch
+            value={status === 'PAY'}
+            onValueChange={(v) => setStatus(v ? 'PAY' : 'NOTPAY')}
+            trackColor={{ true: c.primary }}
+          />
+        </View>
+      )}
 
       {isNew && (
         <View style={styles.switchRow}>

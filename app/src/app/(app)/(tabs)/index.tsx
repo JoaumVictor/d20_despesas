@@ -48,6 +48,7 @@ export default function ExpensesScreen() {
   const { session } = useAuth();
   const period = useAppStore((s) => s.period);
   const setPeriod = useAppStore((s) => s.setPeriod);
+  const showAlertCards = useAppStore((s) => s.showAlertCards);
 
   const { data: categories } = useCategories(session?.user.id);
   const range = useMemo(() => periodToRange(period), [period]);
@@ -149,9 +150,11 @@ export default function ExpensesScreen() {
         <PeriodFilter />
       </View>
 
-      <View style={styles.insights}>
-        <InsightsCarousel scope="despesas" max={5} />
-      </View>
+      {showAlertCards && (
+        <View style={styles.insights}>
+          <InsightsCarousel scope="despesas" max={5} />
+        </View>
+      )}
 
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />

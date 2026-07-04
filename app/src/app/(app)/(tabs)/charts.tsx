@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
+import { InvestmentChart } from '@/features/investments/InvestmentChart';
 import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
-import { InsightCard } from '@/features/stats/InsightCard';
 import { usePeriodStats } from '@/features/stats/api';
 import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/theme/useTheme';
@@ -54,11 +54,6 @@ export default function ChartsScreen() {
         <PeriodFilter />
       </View>
 
-      {/* Cards históricos/metas — independem do filtro global de período */}
-      <View style={styles.carousel}>
-        <InsightsCarousel scope="graficos" />
-      </View>
-
       {stats.isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />
       ) : stats.isEmpty ? (
@@ -70,12 +65,6 @@ export default function ChartsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <View style={styles.insights}>
-            {stats.insights.map((i) => (
-              <InsightCard key={i.id} insight={i} />
-            ))}
-          </View>
-
           <View style={card}>
             <Text style={[styles.cardTitle, { color: c.text }]}>Gasto por categoria</Text>
             <View style={styles.pieRow}>
@@ -113,6 +102,12 @@ export default function ChartsScreen() {
             </View>
           </View>
 
+          {/* Um único carrossel: cards do período ativo (ex. "Maior gasto") + cards
+              históricos/de meta que independem do filtro global. */}
+          <View style={styles.carousel}>
+            <InsightsCarousel scope="graficos" extraItems={stats.insights} />
+          </View>
+
           <View style={card}>
             <Text style={[styles.cardTitle, { color: c.text }]}>Gasto por dia</Text>
             {stats.peakDay && (
@@ -146,6 +141,8 @@ export default function ChartsScreen() {
             </View>
           </View>
 
+          <InvestmentChart />
+
           <View style={{ height: 24 }} />
         </ScrollView>
       )}
@@ -158,9 +155,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
   title: { fontSize: 24, fontWeight: '800' },
   filter: { paddingBottom: 12 },
-  carousel: { paddingBottom: 12 },
   scroll: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
-  insights: { gap: 10 },
+  carousel: { marginHorizontal: -20 },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
   pieRow: { alignItems: 'center', paddingVertical: 8 },
