@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { shadowFloating } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatMonthLabel, toISODate } from '@/utils/format';
 
@@ -43,8 +44,11 @@ export function CalendarModal({ visible, value, onSelect, onClose }: Props) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.card, { backgroundColor: c.surface }]} onPress={() => {}}>
+      <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+        <Pressable
+          style={[styles.card, shadowFloating, { backgroundColor: c.surface }]}
+          onPress={() => {}}
+        >
           <View style={styles.header}>
             <Pressable onPress={() => shift(-1)} hitSlop={8}>
               <MaterialCommunityIcons name="chevron-left" size={26} color={c.primary} />
@@ -106,11 +110,10 @@ export function CalendarModal({ visible, value, onSelect, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'center',
     padding: 24,
   },
-  card: { borderRadius: 18, padding: 16 },
+  card: { borderRadius: 24, padding: 16 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

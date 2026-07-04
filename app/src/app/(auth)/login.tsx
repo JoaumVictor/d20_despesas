@@ -1,14 +1,24 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
-import { useTheme } from '@/theme/useTheme';
+import { radius, shadowFloating, spacing, type } from '@/theme/tokens';
+
+const GOOGLE_BLUE = '#4285F4';
 
 export default function LoginScreen() {
   const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
-  const c = useTheme();
 
   async function handleLogin() {
     setLoading(true);
@@ -22,50 +32,89 @@ export default function LoginScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]}>
-      <View style={styles.hero}>
-        <MaterialCommunityIcons name="wallet-outline" size={72} color={c.primary} />
-        <Text style={[styles.title, { color: c.text }]}>Despesas</Text>
-        <Text style={[styles.subtitle, { color: c.textMuted }]}>
-          Controle suas despesas pessoais de forma simples.
-        </Text>
-      </View>
+    <LinearGradient
+      colors={['#01361D', '#01763B', '#012616']}
+      locations={[0, 0.55, 1]}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.hero}>
+          <View style={[styles.logoCard, shadowFloating]}>
+            <Image
+              source={require('../../../assets/logo.png')}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+          <Text style={styles.appName}>D20 Despesas</Text>
+          <Text style={styles.tagline}>
+            Suas finanças no controle,{'\n'}um dado de cada vez.
+          </Text>
+        </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: c.primary },
-          pressed && styles.buttonPressed,
-        ]}
-        onPress={handleLogin}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={c.primaryContrast} />
-        ) : (
-          <>
-            <MaterialCommunityIcons name="google" size={20} color={c.primaryContrast} />
-            <Text style={[styles.buttonText, { color: c.primaryContrast }]}>Entrar com Google</Text>
-          </>
-        )}
-      </Pressable>
-    </SafeAreaView>
+        <View style={styles.footer}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.googleBtn,
+              shadowFloating,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.99 }] },
+            ]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#111B14" />
+            ) : (
+              <>
+                <MaterialCommunityIcons name="google" size={22} color={GOOGLE_BLUE} />
+                <Text style={styles.googleText}>Continuar com Google</Text>
+              </>
+            )}
+          </Pressable>
+          <Text style={styles.privacy}>
+            Seus dados ficam apenas na sua conta, protegidos por login.
+          </Text>
+        </View>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'space-between', padding: 24 },
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  title: { fontSize: 34, fontWeight: '800' },
-  subtitle: { fontSize: 16, textAlign: 'center', maxWidth: 280 },
-  button: {
-    flexDirection: 'row',
-    gap: 10,
+  gradient: { flex: 1 },
+  container: { flex: 1, justifyContent: 'space-between', padding: spacing.xxl },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.lg },
+  logoCard: {
+    width: 148,
+    height: 148,
+    borderRadius: radius.pill,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 14,
+    marginBottom: spacing.sm,
   },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { fontSize: 16, fontWeight: '700' },
+  logo: { width: 128, height: 128, borderRadius: radius.pill },
+  appName: { ...type.display, color: '#FFFFFF' },
+  tagline: {
+    ...type.body,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  footer: { gap: spacing.lg, paddingBottom: spacing.sm },
+  googleBtn: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: radius.lg,
+  },
+  googleText: { ...type.bodyBold, fontSize: 16, color: '#111B14' },
+  privacy: {
+    ...type.caption,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
 });

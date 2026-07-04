@@ -27,6 +27,7 @@ import {
 import { goalsForMonth, useGoals } from '@/features/goals/api';
 import { monthSpendByCategory } from '@/features/insights/engine';
 import { useAppStore } from '@/store/appStore';
+import { radius, spacing, type } from '@/theme/tokens';
 import type { ExpenseStatus } from '@/types/database';
 import { useTheme } from '@/theme/useTheme';
 import { centsToBRL, digitsToCents, formatCurrency, formatDate, toISODate } from '@/utils/format';
@@ -234,31 +235,32 @@ export default function ExpenseFormScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { padding: 20, gap: 6, paddingBottom: 60 },
+  content: { padding: spacing.xl, gap: 6, paddingBottom: 60 },
   amount: {
-    fontSize: 44,
+    fontSize: 46,
     fontWeight: '800',
+    letterSpacing: -1,
     textAlign: 'center',
-    paddingVertical: 16,
-    marginBottom: 8,
+    paddingVertical: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  label: { fontSize: 14, fontWeight: '600', marginTop: 12 },
+  label: { ...type.label, marginTop: spacing.lg, marginBottom: spacing.xs },
   dateField: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
     paddingVertical: 14,
   },
-  dateText: { fontSize: 16 },
-  goalHint: { fontSize: 12, marginTop: 8, lineHeight: 16 },
+  dateText: { fontSize: 16, fontWeight: '600' },
+  goalHint: { ...type.caption, marginTop: spacing.sm, lineHeight: 17 },
   textarea: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     fontSize: 16,
     minHeight: 96,
   },
@@ -266,10 +268,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
-  saveBtn: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 24 },
-  saveText: { fontSize: 16, fontWeight: '700' },
-  deleteBtn: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
-  deleteText: { fontSize: 15, fontWeight: '600' },
+  saveBtn: {
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: spacing.xxl,
+  },
+  saveText: { ...type.bodyBold, fontSize: 16 },
+  deleteBtn: { alignItems: 'center', paddingVertical: 14, marginTop: spacing.xs },
+  deleteText: { ...type.bodyBold },
 });

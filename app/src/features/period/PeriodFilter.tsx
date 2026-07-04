@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAppStore } from '@/store/appStore';
+import { radius, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { PERIOD_PRESETS, firstOfMonthISO, periodLabel, shiftMonth } from './period';
 
@@ -70,20 +71,20 @@ export function PeriodFilter() {
 }
 
 const styles = StyleSheet.create({
-  wrap: { gap: 10 },
-  chips: { gap: 8, paddingHorizontal: 20 },
+  wrap: { gap: spacing.md },
+  chips: { gap: spacing.sm, paddingHorizontal: spacing.xl },
   chip: {
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.pill,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
   },
-  chipText: { fontSize: 13, fontWeight: '600' },
+  chipText: { fontSize: 13, fontWeight: '700' },
   monthBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 16,
+    gap: spacing.lg,
   },
-  monthLabel: { fontSize: 16, fontWeight: '600', textTransform: 'capitalize' },
+  monthLabel: { ...type.heading, fontSize: 16, textTransform: 'capitalize' },
 });

@@ -26,7 +26,7 @@ export function InsightCard({ insight }: { insight: Insight }) {
 }
 
 const styles = StyleSheet.create({
-  card: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: 14, alignItems: 'center' },
+  card: { flexDirection: 'row', gap: 12, padding: 16, borderRadius: 18, alignItems: 'center' },
   iconWrap: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1 },
   title: { fontSize: 15, fontWeight: '700' },

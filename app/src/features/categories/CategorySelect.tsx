@@ -1,6 +1,8 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { BottomSheet } from '@/components/BottomSheet';
+import { radius, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import type { CategoryRow } from '@/types/database';
 import { CategoryIcon } from './CategoryIcon';
@@ -12,7 +14,7 @@ interface Props {
   onChange: (id: string) => void;
 }
 
-/** Select de categoria (modal), ordenado pelas mais usadas. */
+/** Select de categoria (bottom sheet), ordenado pelas mais usadas. */
 export function CategorySelect({ categories, usage, value, onChange }: Props) {
   const c = useTheme();
   const [open, setOpen] = useState(false);
@@ -45,42 +47,31 @@ export function CategorySelect({ categories, usage, value, onChange }: Props) {
         <MaterialCommunityIcons name="chevron-down" size={22} color={c.textMuted} />
       </Pressable>
 
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <Pressable
-            style={[styles.sheet, { backgroundColor: c.surface }]}
-            onPress={() => {}}
-          >
-            <View style={styles.sheetHeader}>
-              <Text style={[styles.sheetTitle, { color: c.text }]}>Categoria</Text>
-              <Pressable onPress={() => setOpen(false)} hitSlop={8}>
-                <MaterialCommunityIcons name="close" size={22} color={c.textMuted} />
+      <BottomSheet visible={open} onClose={() => setOpen(false)} title="Categoria">
+        <ScrollView style={{ maxHeight: 440 }} showsVerticalScrollIndicator={false}>
+          {ordered.map((cat) => {
+            const active = cat.id === value;
+            return (
+              <Pressable
+                key={cat.id}
+                onPress={() => {
+                  onChange(cat.id);
+                  setOpen(false);
+                }}
+                style={[
+                  styles.row,
+                  { borderBottomColor: c.border },
+                  active && { backgroundColor: c.primarySoft, borderRadius: radius.md },
+                ]}
+              >
+                <CategoryIcon iconKey={cat.icon} color={cat.color} size={34} />
+                <Text style={[styles.rowText, { color: c.text }]}>{cat.name}</Text>
+                {active && <MaterialCommunityIcons name="check" size={20} color={c.primary} />}
               </Pressable>
-            </View>
-            <ScrollView style={{ maxHeight: 420 }}>
-              {ordered.map((cat) => {
-                const active = cat.id === value;
-                return (
-                  <Pressable
-                    key={cat.id}
-                    onPress={() => {
-                      onChange(cat.id);
-                      setOpen(false);
-                    }}
-                    style={[styles.row, { borderBottomColor: c.border }]}
-                  >
-                    <CategoryIcon iconKey={cat.icon} color={cat.color} size={34} />
-                    <Text style={[styles.rowText, { color: c.text }]}>{cat.name}</Text>
-                    {active && (
-                      <MaterialCommunityIcons name="check" size={20} color={c.primary} />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </Pressable>
-        </Pressable>
-      </Modal>
+            );
+          })}
+        </ScrollView>
+      </BottomSheet>
     </>
   );
 }
@@ -89,28 +80,20 @@ const styles = StyleSheet.create({
   field: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    gap: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
   },
-  fieldText: { flex: 1, fontSize: 16, fontWeight: '500' },
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 28 },
-  sheetHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  sheetTitle: { fontSize: 18, fontWeight: '800' },
+  fieldText: { flex: 1, ...type.body, fontWeight: '600' },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  rowText: { flex: 1, fontSize: 16 },
+  rowText: { flex: 1, ...type.body, fontWeight: '500' },
 });

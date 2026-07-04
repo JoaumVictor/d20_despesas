@@ -74,7 +74,7 @@ export function InvestmentChart() {
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 4 },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 18, padding: 16, gap: 4 },
   cardTitle: { fontSize: 16, fontWeight: '700' },
   hint: { fontSize: 12 },
   total: { fontSize: 26, fontWeight: '800', marginTop: 4 },

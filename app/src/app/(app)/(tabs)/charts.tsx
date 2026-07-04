@@ -15,6 +15,7 @@ import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { usePeriodStats } from '@/features/stats/api';
 import { useAppStore } from '@/store/appStore';
+import { radius, shadowCard, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatCurrency, formatDate } from '@/utils/format';
 
@@ -152,25 +153,37 @@ export default function ChartsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
-  title: { fontSize: 24, fontWeight: '800' },
-  filter: { paddingBottom: 12 },
-  scroll: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
-  carousel: { marginHorizontal: -20 },
-  card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },
-  cardTitle: { fontSize: 16, fontWeight: '700' },
-  pieRow: { alignItems: 'center', paddingVertical: 8 },
-  pieCenterLabel: { fontSize: 12 },
+  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  title: { ...type.title },
+  filter: { paddingBottom: spacing.md },
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 96, gap: spacing.lg },
+  carousel: { marginHorizontal: -spacing.xl },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...shadowCard,
+  },
+  cardTitle: { ...type.heading },
+  pieRow: { alignItems: 'center', paddingVertical: spacing.sm },
+  pieCenterLabel: { ...type.caption },
   pieCenterValue: { fontSize: 15, fontWeight: '800' },
-  legend: { gap: 8 },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  dot: { width: 12, height: 12, borderRadius: 6 },
+  legend: { gap: spacing.sm },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  dot: { width: 12, height: 12, borderRadius: radius.pill },
   legendName: { flex: 1, fontSize: 14 },
   legendPct: { fontSize: 13, width: 42, textAlign: 'right' },
-  legendValue: { fontSize: 14, fontWeight: '600', width: 96, textAlign: 'right' },
-  peakText: { fontSize: 13 },
-  lineWrap: { marginTop: 4, overflow: 'hidden' },
+  legendValue: { fontSize: 14, fontWeight: '700', width: 96, textAlign: 'right' },
+  peakText: { ...type.caption },
+  lineWrap: { marginTop: spacing.xs, overflow: 'hidden' },
   axisLabel: { fontSize: 10 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8, paddingHorizontal: 40 },
-  emptyText: { fontSize: 15, textAlign: 'center' },
+  empty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: 40,
+  },
+  emptyText: { ...type.body, textAlign: 'center' },
 });

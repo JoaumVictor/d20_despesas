@@ -1,8 +1,10 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useAppStore, type ThemeMode } from '@/store/appStore';
+import { radius, shadowCard, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
 const THEME_OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
@@ -11,8 +13,16 @@ const THEME_OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
   { key: 'dark', label: 'Escuro', icon: 'moon-waning-crescent' },
 ];
 
+interface PrefRowProps {
+  icon: string;
+  title: string;
+  hint: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}
+
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
+  const { signOut, session } = useAuth();
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
@@ -21,91 +31,109 @@ export default function SettingsScreen() {
   const showAlertCards = useAppStore((s) => s.showAlertCards);
   const setShowAlertCards = useAppStore((s) => s.setShowAlertCards);
 
+  const card = [styles.card, shadowCard, { backgroundColor: c.surface, borderColor: c.border }];
+
+  function PrefRow({ icon, title, hint, value, onChange }: PrefRowProps) {
+    return (
+      <View style={styles.row}>
+        <View style={[styles.iconBadge, { backgroundColor: c.primarySoft }]}>
+          <MaterialCommunityIcons name={icon as never} size={18} color={c.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.rowTitle, { color: c.text }]}>{title}</Text>
+          <Text style={[styles.rowHint, { color: c.textMuted }]}>{hint}</Text>
+        </View>
+        <Switch
+          value={value}
+          onValueChange={onChange}
+          trackColor={{ true: c.primary, false: c.surfaceAlt }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: c.text }]}>Configurações</Text>
-      </View>
+      <ScreenHeader title="Configurações" subtitle={session?.user.email ?? undefined} />
 
-      <View style={styles.section}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Aparência</Text>
-        <View style={[styles.segment, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-          {THEME_OPTIONS.map((opt) => {
-            const active = themeMode === opt.key;
-            return (
-              <Pressable
-                key={opt.key}
-                onPress={() => setThemeMode(opt.key)}
-                style={[styles.segmentItem, active && { backgroundColor: c.primary }]}
-              >
-                <MaterialCommunityIcons
-                  name={opt.icon as never}
-                  size={18}
-                  color={active ? c.primaryContrast : c.textMuted}
-                />
-                <Text
-                  style={[styles.segmentText, { color: active ? c.primaryContrast : c.textMuted }]}
+        <View style={card}>
+          <View style={[styles.segment, { backgroundColor: c.surfaceAlt }]}>
+            {THEME_OPTIONS.map((opt) => {
+              const active = themeMode === opt.key;
+              return (
+                <Pressable
+                  key={opt.key}
+                  onPress={() => setThemeMode(opt.key)}
+                  style={[styles.segmentItem, active && { backgroundColor: c.primary }]}
                 >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <MaterialCommunityIcons
+                    name={opt.icon as never}
+                    size={17}
+                    color={active ? c.primaryContrast : c.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.segmentText,
+                      { color: active ? c.primaryContrast : c.textMuted },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
-      </View>
 
-      <View style={styles.section}>
         <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Preferências</Text>
-
-        <View style={[styles.prefRow, { borderTopColor: c.border }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.prefTitle, { color: c.text }]}>Controlar pago/não pago</Text>
-            <Text style={[styles.prefHint, { color: c.textMuted }]}>
-              Desligue se você só quer anotar gastos, sem marcar status.
-            </Text>
-          </View>
-          <Switch
+        <View style={card}>
+          <PrefRow
+            icon="check-circle-outline"
+            title="Controlar pago/não pago"
+            hint="Desligue se você só quer anotar gastos."
             value={showPaidStatus}
-            onValueChange={setShowPaidStatus}
-            trackColor={{ true: c.primary }}
+            onChange={setShowPaidStatus}
           />
-        </View>
-
-        <View style={[styles.prefRow, { borderTopColor: c.border }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.prefTitle, { color: c.text }]}>Ver cards de alertas</Text>
-            <Text style={[styles.prefHint, { color: c.textMuted }]}>
-              Mostra avisos de metas na tela de Despesas.
-            </Text>
-          </View>
-          <Switch
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
+          <PrefRow
+            icon="bell-badge-outline"
+            title="Ver cards de alertas"
+            hint="Avisos de metas na tela de Despesas."
             value={showAlertCards}
-            onValueChange={setShowAlertCards}
-            trackColor={{ true: c.primary }}
+            onChange={setShowAlertCards}
           />
         </View>
-      </View>
 
-      <View style={styles.section}>
-        <Pressable style={[styles.row, { borderTopColor: c.border }]} onPress={signOut}>
-          <MaterialCommunityIcons name="logout" size={22} color={c.danger} />
-          <Text style={[styles.rowTextDanger, { color: c.danger }]}>Sair da conta</Text>
-        </Pressable>
-      </View>
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Conta</Text>
+        <View style={card}>
+          <Pressable style={styles.row} onPress={signOut}>
+            <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+              <MaterialCommunityIcons name="logout" size={18} color={c.danger} />
+            </View>
+            <Text style={[styles.rowTitle, { color: c.danger, flex: 1 }]}>Sair da conta</Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+          </Pressable>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
-  title: { fontSize: 24, fontWeight: '800' },
-  section: { paddingHorizontal: 20, marginTop: 12 },
-  sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8, textTransform: 'uppercase' },
+  scroll: { paddingHorizontal: spacing.xl, paddingBottom: 96, gap: spacing.sm },
+  sectionLabel: { ...type.label, marginTop: spacing.md, marginBottom: spacing.sm },
+  card: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+  },
   segment: {
     flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
+    borderRadius: radius.md,
     padding: 4,
     gap: 4,
   },
@@ -116,24 +144,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 9,
+    borderRadius: radius.sm,
   },
-  segmentText: { fontSize: 14, fontWeight: '600' },
-  prefRow: {
-    flexDirection: 'row',
+  segmentText: { fontSize: 13.5, fontWeight: '700' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  iconBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: radius.sm,
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    borderTopWidth: 1,
+    justifyContent: 'center',
   },
-  prefTitle: { fontSize: 15, fontWeight: '600' },
-  prefHint: { fontSize: 12, marginTop: 2, lineHeight: 16 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-  },
-  rowTextDanger: { fontSize: 16, fontWeight: '600' },
+  rowTitle: { ...type.bodyBold, fontSize: 15 },
+  rowHint: { ...type.caption, marginTop: 1 },
+  divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
 });

@@ -1,11 +1,14 @@
 /**
- * Paletas do app. Primária = verde forte (#16A34A). O tema escuro usa um verde
- * levemente mais claro para manter contraste sobre fundos escuros.
+ * Paleta "Verde Bandeira" — ancorada no verde real dos ícones de categoria
+ * (#01763B, amostrado dos PNGs) para o app inteiro conversar com eles.
+ * O tema escuro usa um verde mais vivo (#2FBF71) para manter contraste sobre
+ * superfícies quase-pretas esverdeadas.
  */
 export interface ThemeColors {
   primary: string;
+  primaryPressed: string;
   primaryContrast: string;
-  primarySoft: string; // fundo suave da cor primária (chips, destaques)
+  primarySoft: string; // fundo suave da cor primária (chips, badges)
   bg: string;
   surface: string;
   surfaceAlt: string;
@@ -17,40 +20,46 @@ export interface ThemeColors {
   success: string;
   successSoft: string;
   tabInactive: string;
+  /** backdrop de modais/bottom sheets */
+  overlay: string;
 }
 
 export const lightColors: ThemeColors = {
-  primary: '#16A34A',
-  primaryContrast: '#ffffff',
-  primarySoft: '#dcfce7',
-  bg: '#ffffff',
-  surface: '#ffffff',
-  surfaceAlt: '#f9fafb',
-  text: '#111827',
-  textMuted: '#6b7280',
-  border: '#eceef1',
-  danger: '#dc2626',
-  dangerSoft: '#fef2f2',
-  success: '#16a34a',
-  successSoft: '#f0fdf4',
-  tabInactive: '#9ca3af',
+  primary: '#01763B',
+  primaryPressed: '#015B2E',
+  primaryContrast: '#FFFFFF',
+  primarySoft: '#E3F2E9',
+  bg: '#F6F8F7',
+  surface: '#FFFFFF',
+  surfaceAlt: '#EFF3F0',
+  text: '#111B14',
+  textMuted: '#5C6B61',
+  border: '#E2E8E4',
+  danger: '#DC2626',
+  dangerSoft: '#FDECEC',
+  success: '#01763B',
+  successSoft: '#E3F2E9',
+  tabInactive: '#8FA096',
+  overlay: 'rgba(4, 18, 10, 0.55)',
 };
 
 export const darkColors: ThemeColors = {
-  primary: '#22C55E',
-  primaryContrast: '#052e16',
-  primarySoft: '#14321f',
-  bg: '#0b0f14',
-  surface: '#121820',
-  surfaceAlt: '#1a222c',
-  text: '#f3f4f6',
-  textMuted: '#9aa5b1',
-  border: '#26303b',
-  danger: '#f87171',
-  dangerSoft: '#2a1416',
-  success: '#4ade80',
-  successSoft: '#0f2417',
-  tabInactive: '#6b7280',
+  primary: '#2FBF71',
+  primaryPressed: '#27A160',
+  primaryContrast: '#04130A',
+  primarySoft: '#123524',
+  bg: '#0A0F0C',
+  surface: '#121A15',
+  surfaceAlt: '#1A241E',
+  text: '#ECF2EE',
+  textMuted: '#93A39A',
+  border: '#233029',
+  danger: '#F87171',
+  dangerSoft: '#2C1517',
+  success: '#3ACD7E',
+  successSoft: '#0F2A1C',
+  tabInactive: '#5E6E64',
+  overlay: 'rgba(0, 0, 0, 0.65)',
 };
 
 export type ThemeName = 'light' | 'dark';

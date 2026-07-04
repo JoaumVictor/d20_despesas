@@ -1,19 +1,13 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BottomSheet } from '@/components/BottomSheet';
 import { CategorySelect } from '@/features/categories/CategorySelect';
+import { firstOfMonthISO } from '@/features/period/period';
+import { radius, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import type { CategoryRow, GoalKind } from '@/types/database';
 import { centsToBRL, digitsToCents } from '@/utils/format';
-import { firstOfMonthISO } from '@/features/period/period';
 import type { GoalInput, GoalWithCategory } from './api';
 
 interface Props {
@@ -26,9 +20,9 @@ interface Props {
   onClose: () => void;
 }
 
-const KINDS: { key: GoalKind; label: string; hint: string; icon: string }[] = [
-  { key: 'limit', label: 'Limite', hint: 'gastar no máximo', icon: 'speedometer' },
-  { key: 'target', label: 'Alvo', hint: 'quero alcançar', icon: 'flag-checkered' },
+const KINDS: { key: GoalKind; label: string; icon: string }[] = [
+  { key: 'limit', label: 'Limite', icon: 'speedometer' },
+  { key: 'target', label: 'Alvo', icon: 'flag-checkered' },
 ];
 
 /** Form de meta: categoria + tipo (limite/alvo) + valor + recorrência. */
@@ -76,112 +70,94 @@ export function GoalFormModal({ visible, categories, usage, editing, onSubmit, o
   }
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={[styles.sheet, { backgroundColor: c.surface }]} onPress={() => {}}>
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: c.text }]}>
-              {editing ? 'Editar meta' : 'Nova meta'}
-            </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <MaterialCommunityIcons name="close" size={22} color={c.textMuted} />
-            </Pressable>
-          </View>
-
-          <Text style={[styles.label, { color: c.textMuted }]}>Tipo</Text>
-          <View style={[styles.segment, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}>
-            {KINDS.map((k) => {
-              const active = kind === k.key;
-              return (
-                <Pressable
-                  key={k.key}
-                  onPress={() => setKind(k.key)}
-                  style={[styles.segmentItem, active && { backgroundColor: c.primary }]}
-                >
-                  <MaterialCommunityIcons
-                    name={k.icon as never}
-                    size={16}
-                    color={active ? c.primaryContrast : c.textMuted}
-                  />
-                  <Text
-                    style={[styles.segmentText, { color: active ? c.primaryContrast : c.textMuted }]}
-                  >
-                    {k.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Text style={[styles.hint, { color: c.textMuted }]}>
-            {kind === 'limit'
-              ? 'Gastar no máximo esse valor com a categoria no mês.'
-              : 'Marca que você quer alcançar na categoria no mês (ex.: investir R$500).'}
-          </Text>
-
-          <Text style={[styles.label, { color: c.textMuted }]}>Categoria</Text>
-          <CategorySelect
-            categories={categories}
-            usage={usage}
-            value={categoryId}
-            onChange={setCategoryId}
-          />
-
-          <Text style={[styles.label, { color: c.textMuted }]}>Valor</Text>
-          <TextInput
-            style={[styles.amount, { color: c.primary }]}
-            value={centsToBRL(amountCents)}
-            onChangeText={(t) => setAmountCents(digitsToCents(t))}
-            keyboardType="number-pad"
-            selectionColor={c.primary}
-          />
-
-          <Pressable style={styles.recurrentRow} onPress={() => setRecurrent((r) => !r)}>
-            <MaterialCommunityIcons
-              name={recurrent ? 'checkbox-marked' : 'checkbox-blank-outline'}
-              size={22}
-              color={recurrent ? c.primary : c.textMuted}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.recurrentText, { color: c.text }]}>Repete todo mês</Text>
-              <Text style={[styles.hint, { color: c.textMuted, marginTop: 0 }]}>
-                {recurrent ? 'A meta vale para todos os meses.' : 'A meta vale só para este mês.'}
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      title={editing ? 'Editar meta' : 'Nova meta'}
+    >
+      <Text style={[styles.label, { color: c.textMuted }]}>Tipo</Text>
+      <View style={[styles.segment, { backgroundColor: c.surfaceAlt }]}>
+        {KINDS.map((k) => {
+          const active = kind === k.key;
+          return (
+            <Pressable
+              key={k.key}
+              onPress={() => setKind(k.key)}
+              style={[styles.segmentItem, active && { backgroundColor: c.primary }]}
+            >
+              <MaterialCommunityIcons
+                name={k.icon as never}
+                size={16}
+                color={active ? c.primaryContrast : c.textMuted}
+              />
+              <Text
+                style={[styles.segmentText, { color: active ? c.primaryContrast : c.textMuted }]}
+              >
+                {k.label}
               </Text>
-            </View>
-          </Pressable>
+            </Pressable>
+          );
+        })}
+      </View>
+      <Text style={[styles.hint, { color: c.textMuted }]}>
+        {kind === 'limit'
+          ? 'Gastar no máximo esse valor com a categoria no mês.'
+          : 'Marca que você quer alcançar na categoria no mês (ex.: investir R$500).'}
+      </Text>
 
-          <Pressable
-            style={[styles.saveBtn, { backgroundColor: c.primary, opacity: saving ? 0.7 : 1 }]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            <Text style={[styles.saveText, { color: c.primaryContrast }]}>
-              {editing ? 'Salvar alterações' : 'Criar meta'}
-            </Text>
-          </Pressable>
-        </Pressable>
+      <Text style={[styles.label, { color: c.textMuted }]}>Categoria</Text>
+      <CategorySelect
+        categories={categories}
+        usage={usage}
+        value={categoryId}
+        onChange={setCategoryId}
+      />
+
+      <Text style={[styles.label, { color: c.textMuted }]}>Valor</Text>
+      <TextInput
+        style={[styles.amount, { color: c.primary }]}
+        value={centsToBRL(amountCents)}
+        onChangeText={(t) => setAmountCents(digitsToCents(t))}
+        keyboardType="number-pad"
+        selectionColor={c.primary}
+      />
+
+      <Pressable style={styles.recurrentRow} onPress={() => setRecurrent((r) => !r)}>
+        <MaterialCommunityIcons
+          name={recurrent ? 'checkbox-marked' : 'checkbox-blank-outline'}
+          size={22}
+          color={recurrent ? c.primary : c.textMuted}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.recurrentText, { color: c.text }]}>Repete todo mês</Text>
+          <Text style={[styles.hint, { color: c.textMuted, marginTop: 0 }]}>
+            {recurrent ? 'A meta vale para todos os meses.' : 'A meta vale só para este mês.'}
+          </Text>
+        </View>
       </Pressable>
-    </Modal>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.saveBtn,
+          {
+            backgroundColor: pressed ? c.primaryPressed : c.primary,
+            opacity: saving ? 0.7 : 1,
+          },
+        ]}
+        onPress={handleSave}
+        disabled={saving}
+      >
+        <Text style={[styles.saveText, { color: c.primaryContrast }]}>
+          {editing ? 'Salvar alterações' : 'Criar meta'}
+        </Text>
+      </Pressable>
+    </BottomSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 16, paddingBottom: 28 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  title: { fontSize: 18, fontWeight: '800' },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    marginTop: 14,
-    marginBottom: 8,
-  },
-  segment: { flexDirection: 'row', borderRadius: 12, borderWidth: 1, padding: 4, gap: 4 },
+  label: { ...type.label, marginTop: spacing.lg, marginBottom: spacing.sm },
+  segment: { flexDirection: 'row', borderRadius: radius.md, padding: 4, gap: 4 },
   segmentItem: {
     flex: 1,
     flexDirection: 'row',
@@ -189,13 +165,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingVertical: 10,
-    borderRadius: 9,
+    borderRadius: radius.sm,
   },
-  segmentText: { fontSize: 14, fontWeight: '600' },
-  hint: { fontSize: 12, marginTop: 6, lineHeight: 16 },
-  amount: { fontSize: 36, fontWeight: '800', textAlign: 'center', paddingVertical: 8 },
-  recurrentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
-  recurrentText: { fontSize: 15, fontWeight: '600' },
-  saveBtn: { borderRadius: 12, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
-  saveText: { fontSize: 16, fontWeight: '700' },
+  segmentText: { fontSize: 14, fontWeight: '700' },
+  hint: { ...type.caption, marginTop: spacing.sm, lineHeight: 17 },
+  amount: { fontSize: 36, fontWeight: '800', textAlign: 'center', paddingVertical: spacing.sm },
+  recurrentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.lg,
+  },
+  recurrentText: { ...type.bodyBold },
+  saveBtn: {
+    borderRadius: radius.md,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: spacing.xxl,
+  },
+  saveText: { ...type.bodyBold, fontSize: 16 },
 });
