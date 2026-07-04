@@ -23,6 +23,14 @@ import {
   type ExpenseWithCategory,
 } from '@/features/expenses/api';
 import { activeFilterCount, applyFilters, emptyFilters } from '@/features/expenses/filters';
+import { CancelInstallmentSheet } from '@/features/installments/CancelInstallmentSheet';
+import { GhostExpenseItem } from '@/features/installments/GhostExpenseItem';
+import {
+  useCancelInstallment,
+  useConfirmInstallment,
+  useGhostInstallments,
+  type GhostInstallment,
+} from '@/features/installments/api';
 import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { periodToRange, shiftMonth } from '@/features/period/period';
@@ -55,9 +63,13 @@ export default function ExpensesScreen() {
   const range = useMemo(() => periodToRange(period), [period]);
   const { data, isLoading, isRefetching, refetch, error } = useExpensesByRange(range);
   const toggleStatus = useToggleStatus();
+  const ghosts = useGhostInstallments(range);
+  const confirmInstallment = useConfirmInstallment(session?.user.id ?? '');
+  const cancelInstallment = useCancelInstallment();
 
   const [filters, setFilters] = useState(emptyFilters);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<GhostInstallment | null>(null);
 
   const filtered = useMemo(() => applyFilters(data ?? [], filters), [data, filters]);
   const total = useMemo(() => filtered.reduce((sum, e) => sum + e.price, 0), [filtered]);
@@ -123,6 +135,12 @@ export default function ExpensesScreen() {
 
   const noResults = !isLoading && (data?.length ?? 0) > 0 && filtered.length === 0;
 
+  async function handleCancel(scope: 'this' | 'remaining') {
+    if (!cancelTarget) return;
+    await cancelInstallment.mutateAsync({ ghost: cancelTarget, scope });
+    setCancelTarget(null);
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.header}>
@@ -177,6 +195,20 @@ export default function ExpensesScreen() {
               refreshControl={
                 <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={c.primary} />
               }
+              ListHeaderComponent={
+                ghosts.length > 0 ? (
+                  <View style={styles.ghosts}>
+                    {ghosts.map((ghost) => (
+                      <GhostExpenseItem
+                        key={`${ghost.seriesId}:${ghost.installmentNumber}`}
+                        ghost={ghost}
+                        onConfirm={() => confirmInstallment.mutate(ghost)}
+                        onCancel={() => setCancelTarget(ghost)}
+                      />
+                    ))}
+                  </View>
+                ) : null
+              }
               renderSectionHeader={({ section }) => (
                 <View style={[styles.dayHeader, { borderTopColor: c.border }]}>
                   <Text style={[styles.dayLabel, { color: c.textMuted }]}>
@@ -230,6 +262,14 @@ export default function ExpensesScreen() {
         onApply={setFilters}
         onClose={() => setFiltersOpen(false)}
       />
+
+      <CancelInstallmentSheet
+        ghost={cancelTarget}
+        loading={cancelInstallment.isPending}
+        onCancelThis={() => handleCancel('this')}
+        onCancelRemaining={() => handleCancel('remaining')}
+        onClose={() => setCancelTarget(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -268,6 +308,7 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 11, fontWeight: '800' },
   listContent: { paddingHorizontal: spacing.xl, paddingBottom: 96 },
+  ghosts: { paddingTop: spacing.sm },
   dayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

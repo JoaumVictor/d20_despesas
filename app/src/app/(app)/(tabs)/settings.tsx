@@ -1,8 +1,12 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { ConfirmDeleteSheet } from '@/components/ConfirmDeleteSheet';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { useAuth } from '@/features/auth/AuthContext';
+import { useDeleteAllExpenses } from '@/features/expenses/api';
+import { useDeleteAllGoals } from '@/features/goals/api';
 import { useAppStore, type ThemeMode } from '@/store/appStore';
 import { radius, shadowCard, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
@@ -21,8 +25,11 @@ interface PrefRowProps {
   onChange: (v: boolean) => void;
 }
 
+type DangerAction = 'expenses' | 'all' | null;
+
 export default function SettingsScreen() {
   const { signOut, session } = useAuth();
+  const userId = session?.user.id;
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
   const setThemeMode = useAppStore((s) => s.setThemeMode);
@@ -31,7 +38,12 @@ export default function SettingsScreen() {
   const showAlertCards = useAppStore((s) => s.showAlertCards);
   const setShowAlertCards = useAppStore((s) => s.setShowAlertCards);
 
+  const deleteAllExpenses = useDeleteAllExpenses(userId ?? '');
+  const deleteAllGoals = useDeleteAllGoals(userId ?? '');
+  const [dangerAction, setDangerAction] = useState<DangerAction>(null);
+
   const card = [styles.card, shadowCard, { backgroundColor: c.surface, borderColor: c.border }];
+  const deleting = deleteAllExpenses.isPending || deleteAllGoals.isPending;
 
   function PrefRow({ icon, title, hint, value, onChange }: PrefRowProps) {
     return (
@@ -51,6 +63,27 @@ export default function SettingsScreen() {
         />
       </View>
     );
+  }
+
+  async function handleConfirmExpenses() {
+    try {
+      await deleteAllExpenses.mutateAsync();
+      setDangerAction(null);
+      Alert.alert('Pronto', 'Todas as suas despesas foram excluídas.');
+    } catch (err) {
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Tente novamente.');
+    }
+  }
+
+  async function handleConfirmAll() {
+    try {
+      await deleteAllExpenses.mutateAsync();
+      await deleteAllGoals.mutateAsync();
+      setDangerAction(null);
+      await signOut();
+    } catch (err) {
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Tente novamente.');
+    }
   }
 
   return (
@@ -117,7 +150,56 @@ export default function SettingsScreen() {
             <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
           </Pressable>
         </View>
+
+        <Text style={[styles.sectionLabel, { color: c.danger }]}>Zona de perigo</Text>
+        <View style={card}>
+          <Pressable style={styles.row} onPress={() => setDangerAction('expenses')}>
+            <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+              <MaterialCommunityIcons name="delete-sweep-outline" size={18} color={c.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: c.text }]}>Excluir todas as despesas</Text>
+              <Text style={[styles.rowHint, { color: c.textMuted }]}>
+                Categorias e metas continuam intactas.
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+          </Pressable>
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
+          <Pressable style={styles.row} onPress={() => setDangerAction('all')}>
+            <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+              <MaterialCommunityIcons name="account-remove-outline" size={18} color={c.danger} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: c.text }]}>Excluir todos os meus dados</Text>
+              <Text style={[styles.rowHint, { color: c.textMuted }]}>
+                Apaga despesas e metas, e sai da conta.
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+          </Pressable>
+        </View>
       </ScrollView>
+
+      <ConfirmDeleteSheet
+        visible={dangerAction === 'expenses'}
+        title="Excluir todas as despesas"
+        description="Isso apaga permanentemente todos os seus lançamentos de despesa. Suas categorias e metas não são afetadas. Essa ação não pode ser desfeita."
+        confirmLabel="Excluir despesas"
+        loading={deleting}
+        onConfirm={handleConfirmExpenses}
+        onClose={() => setDangerAction(null)}
+      />
+
+      <ConfirmDeleteSheet
+        visible={dangerAction === 'all'}
+        title="Excluir todos os meus dados"
+        description="Isso apaga permanentemente todas as suas despesas e metas, e sai da sua conta. Suas categorias continuam do jeito que estão. Sua conta Google não é excluída — você pode entrar de novo quando quiser, começando do zero."
+        confirmLabel="Excluir tudo e sair"
+        loading={deleting}
+        onConfirm={handleConfirmAll}
+        onClose={() => setDangerAction(null)}
+      />
     </SafeAreaView>
   );
 }

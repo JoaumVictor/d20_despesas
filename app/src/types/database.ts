@@ -43,6 +43,34 @@ export type ExpenseRow = {
   updated_at: string | null;
 };
 
+export type InstallmentOccurrenceStatus = 'confirmed' | 'cancelled';
+
+export type InstallmentSeriesRow = {
+  id: string;
+  user_id: string;
+  category_id: string;
+  description: string;
+  amount: number;
+  total_installments: number;
+  /** 1º dia do mês da 1ª parcela (YYYY-MM-01) */
+  start_month: string;
+  /** se preenchido, nenhum fantasma >= esse número é gerado */
+  cancelled_from: number | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type InstallmentOccurrenceRow = {
+  id: string;
+  series_id: string;
+  installment_number: number;
+  /** 1º dia do mês daquela parcela (YYYY-MM-01) */
+  month: string;
+  status: InstallmentOccurrenceStatus;
+  expense_id: string | null;
+  created_at: string;
+};
+
 type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
 
 export interface Database {
@@ -67,6 +95,21 @@ export interface Database {
         Row: GoalRow;
         Insert: Insert<GoalRow, 'id' | 'created_at' | 'updated_at' | 'month'>;
         Update: Partial<GoalRow>;
+        Relationships: [];
+      };
+      installment_series: {
+        Row: InstallmentSeriesRow;
+        Insert: Insert<
+          InstallmentSeriesRow,
+          'id' | 'created_at' | 'updated_at' | 'cancelled_from'
+        >;
+        Update: Partial<InstallmentSeriesRow>;
+        Relationships: [];
+      };
+      installment_occurrences: {
+        Row: InstallmentOccurrenceRow;
+        Insert: Insert<InstallmentOccurrenceRow, 'id' | 'created_at' | 'expense_id'>;
+        Update: Partial<InstallmentOccurrenceRow>;
         Relationships: [];
       };
     };

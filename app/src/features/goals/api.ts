@@ -89,3 +89,15 @@ export function useDeleteGoal() {
     onSuccess: invalidate,
   });
 }
+
+/** Apaga todas as metas do usuário (mantém categorias). */
+export function useDeleteAllGoals(userId: string) {
+  const invalidate = useInvalidateGoals();
+  return useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('goals').delete().eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: invalidate,
+  });
+}

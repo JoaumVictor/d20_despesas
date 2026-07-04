@@ -1,105 +1,122 @@
-# CURRENT_TASK — Redesign premium do app (paleta, navbar, login e padronização geral)
+# CURRENT_TASK — Compras parceladas (parcelas fantasma até confirmação)
 
-**Complexidade:** 🔴 Grande — reformulação visual de todas as telas e componentes. Zero mudança de banco/lógica de negócio e zero rebuild nativo (tudo estilo/JS). Dividida em subtarefas com checkpoints visuais no emulador (claro + escuro).
+**Complexidade:** 🔴 Grande — tabelas novas (série + ocorrências), RLS, geração/confirmação/cancelamento de parcelas, e um novo tipo de item na lista de Despesas (card fantasma). Sem rebuild nativo.
 
 ---
 
 ## Objetivo
 
-Elevar o app a um visual **premium de fintech**: paleta ancorada no **verde real dos ícones de categoria** (`#01763B`, extraído por amostragem dos PNGs), tipografia e espaçamentos padronizados, navbar corrigida (botão “+” hoje é **clipado** pela tab bar), login redesenhado com a **logo oficial** (`assets/d20_despesas.png`) e todas as seções coerentes entre si.
-
-## Problemas apontados
-1. Navbar com layout quebrado e **botão “+” cortado** (o `tabBarButton` usa `top:-16` e o container da tab bar clippa o excedente no Android).
-2. **Login** básico: ícone genérico de carteira, sem logo, sem identidade.
-3. Cores atuais (`#16A34A`/`#22C55E`) não conversam com o verde profundo dos ícones.
-4. Falta padronização: raios, sombras, espaçamentos e cabeçalhos diferem entre telas/modais.
+Ao criar uma despesa parcelada (ex.: TV em 12x), o app:
+1. Cria a despesa **deste mês** normalmente (real, paga/em aberto como sempre).
+2. Mostra um aviso: *"Você começa a pagar agora em junho e essa compra se repete até dezembro de 2026."*
+3. Nos meses **futuros**, a parcela aparece na lista como **card fantasma** (pendente, visual diferenciado) — não é uma despesa de verdade ainda.
+4. Ao chegar naquele mês, o usuário decide:
+   - **✓ (check):** confirma — cria a despesa real daquele mês (mesma categoria/descrição/valor), status paga. O fantasma vira despesa de verdade.
+   - **✗ (X):** abre um modal perguntando **"Cancelar só este mês"** ou **"Cancelar esta e todas as parcelas futuras"**.
 
 ---
 
-## Direção de design (decisões)
+## Decisão de arquitetura
 
-### Paleta “Verde Bandeira” (ancorada em #01763B)
-- **Light:** `primary #01763B` · `primaryPressed #015B2E` · `primarySoft #E3F2E9` · bg `#F6F8F7` (off-white esverdeado) · surface `#FFFFFF` · surfaceAlt `#EFF3F0` · text `#111B14` · textMuted `#5C6B61` · border `#E2E8E4` · danger `#DC2626` · success `#01763B`.
-- **Dark (fintech premium):** bg `#0A0F0C` (quase-preto esverdeado) · surface `#121A15` · surfaceAlt `#1A241E` · `primary #2FBF71` (verde vivo p/ contraste) · primarySoft `#123524` · text `#ECF2EE` · textMuted `#93A39A` · border `#233029`.
-- `ThemeColors` ganha `primaryPressed`, `overlay` (backdrop), e sombras nomeadas.
+### Substitui o "Repete no próximo mês?" atual
+Hoje esse toggle só duplica a despesa para o mês seguinte, **de forma antecipada** (cria as 2 linhas na hora). Isso não serve mais pro caso de parcelamento (12x) nem para o fluxo de confirmação mês a mês. A caixa de seleção do form vira um **stepper de parcelas**: `1x` (padrão, sem repetição) até `Nx`. `1x` = comportamento atual sem repetição. `2x+` = cria a série nova.
 
-### Tokens de design (novo `src/theme/tokens.ts`)
-- **Espaçamento:** escala 4/8/12/16/20/24/32.
-- **Raios:** `sm 10 · md 14 · lg 18 · xl 24 · pill 999`.
-- **Tipografia:** display 32/800 · title 22/800 · heading 17/700 · body 15 · caption 12,5 · label 13/600 uppercase.
-- **Sombra/elevação:** `card` (suave) e `floating` (FAB/modais) definidas uma vez e reusadas.
+> O campo antigo `expenses.recurrent_id` (duplicação simples) deixa de ser usado para novas despesas; despesas antigas com `recurrent_id` continuam funcionando como estão (não migradas, sem impacto).
 
-### Navbar (fix do corte + visual)
-- Tab bar mais alta (~74 + safe area), fundo `surface`, borda superior hairline, labels 11/600.
-- **FAB central desenhado FORA da tab bar** (absoluto no `TabsLayout`, acima da barra): nunca mais é clipado, sombra `floating` completa, anel de destaque. A rota `add` vira um espaçador invisível (mantém o slot do meio).
-- Ícones: preenchidos quando ativos (wallet/chart-box/target/cog “-outline” quando inativos).
+### Tabelas novas
+**`installment_series`** — a "compra parcelada" em si:
+| campo | tipo |
+|---|---|
+| id | uuid pk |
+| user_id | uuid → auth.users, cascade |
+| category_id | uuid → categories |
+| description | text |
+| amount | numeric(12,2) — valor de cada parcela |
+| total_installments | int (2..N) |
+| start_month | date (1º dia do mês da 1ª parcela) |
+| cancelled_from | int null — se preenchido, a série para de gerar fantasmas a partir dessa parcela (inclusive) |
 
-### Login premium
-- Fundo em **gradiente verde profundo** (`expo-linear-gradient`, já instalado) com a **logo `d20_despesas.png`** em destaque (card circular com sombra), nome “D20 Despesas” + tagline.
-- Botão Google **branco** padrão (logo “G” colorida via MCI + texto escuro), estados de loading/pressed, rodapé discreto (“Seus dados ficam só na sua conta”).
+**`installment_occurrences`** — uma linha por parcela (1..N):
+| campo | tipo |
+|---|---|
+| id | uuid pk |
+| series_id | uuid → installment_series, cascade |
+| installment_number | int (1..N) |
+| month | date (1º dia do mês daquela parcela) |
+| status | text: `'confirmed' \| 'cancelled' \| 'pending'` (linha só existe pra confirmed/cancelled; pending é **calculado**, não gravado — ver abaixo) |
+| expense_id | uuid null → expenses (preenchido quando confirmada) |
 
-### Padronização de componentes
-- `src/components/ScreenHeader.tsx` — título (display) + ação à direita; usado nas 4 tabs.
-- `src/components/BottomSheet.tsx` — wrapper de modal (backdrop `overlay`, raio `xl` no topo, **handle** central, padding padrão); adotado por CategorySelect, ExpenseFiltersModal, GoalFormModal e CalendarModal.
-- Cards: raio `lg`, borda hairline, sombra `card` — igual em Gráficos, Metas, sugestões e carrossel de insights.
+- Só gravamos ocorrência quando ela **sai do estado pendente** (confirmada ou cancelada). O estado "fantasma pendente" é **derivado**: existe se `month <= mês_atual`, `installment_number <= total_installments`, `(cancelled_from is null or installment_number < cancelled_from)`, e **não** há linha em `installment_occurrences` pra aquele `(series_id, installment_number)`.
+- Isso evita gerar N linhas antecipadamente — simples e sem cron job.
 
-### Telas (retoques com os tokens)
-- **Despesas:** hero do total (label pequena + valor display, chip de variação), chips de período em pill `surfaceAlt`/primary, headers de dia mais discretos (label uppercase + total), itens com respiro maior.
-- **Gráficos:** títulos de card padronizados (heading), legenda alinhada, mesmos raios/sombras em pizza/linha/patrimônio.
-- **Metas:** cards de meta e sugestões no mesmo estilo; barra de progresso com track suave e cantos redondos.
-- **Config:** seções com label uppercase, linhas com ícone em “badge” `primarySoft`, chevron, divisores hairline.
-- **Form de despesa:** valor display centrado, inputs `surfaceAlt` sem borda dura (foco com anel primary), switches na cor primary — tudo com os tokens.
+### Integração na lista de Despesas
+- `useGhostInstallments(range)` — para cada série ativa do usuário, calcula quais parcelas caem dentro do período visível e ainda não têm ocorrência gravada → gera itens fantasma (mesmo shape visual de `ExpenseItem`, mas com badge "Parcela 3/12 · pendente" e sem status pago/não pago).
+- Fantasmas de **meses futuros** (além do atual) não aparecem soltos na lista — só quando o usuário navega até aquele mês (a lista já é por período, então isso é natural).
+- Fantasma de mês **passado** que nunca foi confirmado nem cancelado: continua aparecendo (não desaparece sozinho) até o usuário decidir.
+
+### Ações do fantasma
+- **✓:** `useConfirmInstallment` — cria a `expense` real (status `PAY`) + grava `installment_occurrences` (status `confirmed`, `expense_id`).
+- **✗:** abre modal com 2 opções:
+  - "Cancelar só este mês" → grava ocorrência `cancelled` para esse número, série segue normalmente nas próximas.
+  - "Cancelar esta e as futuras" → grava ocorrência `cancelled` para esse número **e** seta `cancelled_from = installment_number` na série (nenhum fantasma além dele é gerado).
+
+### Form de despesa
+- Troca o switch "Repete no próximo mês?" por um stepper **"Parcelar em quantas vezes?"** (1 a 36, por exemplo), visível só em despesas **novas** (edição de uma parcela confirmada continua sendo uma despesa normal).
+- Quando `> 1x`, mostra o texto dinâmico: *"Você começa a pagar agora em {mês/ano da 1ª parcela} e essa compra se repete até {mês/ano da última parcela}."*
+- Ao salvar com `Nx`: cria a `installment_series` + a primeira `installment_occurrence` (confirmed, expense_id = despesa recém-criada) + a despesa real do mês atual.
 
 ---
 
 ## Checklist
 
-### Subtarefa 1 — Fundação (checkpoint ✅)
-- [ ] `theme/tokens.ts` (spacing, radius, type, sombras)
-- [ ] `theme/palette.ts` reancorado em `#01763B` (light + dark, campos novos)
-- [ ] `components/ScreenHeader.tsx` e `components/BottomSheet.tsx`
-- [ ] Navbar nova + **FAB central sem corte** (fora da tab bar)
-- [ ] Login premium com logo + gradiente
-- [ ] **Checkpoint:** screenshots login + navbar nos 2 temas
+### Subtarefa 1 — Banco
+- [ ] Migration `0003_installments.sql`: `installment_series`, `installment_occurrences`, RLS, índices
+- [ ] Rodar via psql, tipos TS (`InstallmentSeriesRow`, `InstallmentOccurrenceRow`)
 
-### Subtarefa 2 — Telas principais (checkpoint ✅)
-- [ ] Despesas (hero, chips, day headers, itens)
-- [ ] Gráficos (cards padronizados)
-- [ ] Metas (metas + sugestões no padrão)
-- [ ] Configurações (seções/linhas premium)
-- [ ] **Checkpoint:** screenshots das 4 tabs nos 2 temas
+### Subtarefa 2 — Criação (form)
+- [ ] Stepper de parcelas no form + texto dinâmico do período
+- [ ] `useCreateInstallmentPurchase` — cria série + 1ª ocorrência + despesa do mês atual
 
-### Subtarefa 3 — Form + sheets
-- [ ] Form de despesa com tokens (valor, inputs, hint de meta)
-- [ ] CategorySelect, ExpenseFiltersModal, GoalFormModal e CalendarModal no `BottomSheet` padrão
-- [ ] Carrossel de insights alinhado (raio/sombra/margens)
+### Subtarefa 3 — Fantasmas na lista (checkpoint ✅)
+- [ ] `useGhostInstallments(range)` — deriva pendências a partir das séries ativas
+- [ ] Componente de card fantasma (visual diferenciado, badge "Parcela X/N")
+- [ ] Mesclar fantasmas com despesas reais no `SectionList` de Despesas (por dia/mês)
+
+### Subtarefa 4 — Confirmar / cancelar
+- [ ] `useConfirmInstallment` (cria despesa + ocorrência confirmed)
+- [ ] Modal "cancelar só este mês / cancelar todas as futuras" + mutations correspondentes
+- [ ] Invalidação de cache (expenses + séries) após qualquer ação
 
 ### Validação
 - [ ] `tsc --noEmit` limpo
-- [ ] Emulador: claro + escuro em todas as telas; FAB inteiro (sem corte); login com logo; contraste legível
+- [ ] Emulador: criar compra 3x, ver fantasma no mês seguinte, confirmar (vira despesa real), criar outra e cancelar (só o mês / todas as futuras)
 
 ---
 
-## Arquivos afetados (principais)
-- `src/theme/palette.ts` (reancorada) · `src/theme/tokens.ts` (novo)
-- `src/components/ScreenHeader.tsx`, `src/components/BottomSheet.tsx` (novos)
-- `src/app/(app)/(tabs)/_layout.tsx` (navbar/FAB) · `(auth)/login.tsx` (redesign)
-- `(tabs)/index.tsx`, `charts.tsx`, `goals.tsx`, `settings.tsx` · `(app)/expense/[id].tsx`
-- `features/period/PeriodFilter.tsx` · `features/expenses/ExpenseItem.tsx`, `ExpenseFiltersModal.tsx` · `features/categories/CategorySelect.tsx` · `features/goals/GoalFormModal.tsx` · `features/insights/InsightsCarousel.tsx` · `features/stats/InsightCard.tsx` · `features/suggestions/SuggestionCard.tsx` · `features/investments/InvestmentChart.tsx` · `components/CalendarModal.tsx`
+## Arquivos que serão afetados/criados
+- `app/supabase/migrations/0003_installments.sql` (criado)
+- `app/src/types/database.ts` (modificado)
+- `app/src/features/installments/api.ts` (criado — CRUD + derivação de fantasmas)
+- `app/src/features/installments/GhostExpenseItem.tsx` (criado)
+- `app/src/features/installments/CancelInstallmentSheet.tsx` (criado)
+- `app/src/app/(app)/expense/[id].tsx` (modificado — stepper de parcelas)
+- `app/src/app/(app)/(tabs)/index.tsx` (modificado — mescla fantasmas na lista)
 
 ## Variáveis de ambiente
-- Nenhuma nova. Sem rebuild nativo (gradiente já instalado).
+- Nenhuma nova.
 
 ## Critério de aceite
-1. Botão “+” central **inteiro** (sem corte), navbar alinhada e elegante nos 2 temas.
-2. Login com **logo oficial**, gradiente e botão Google padrão — visual de app publicado.
-3. Paleta única ancorada no verde `#01763B` combinando com os ícones de categoria em **todas** as telas (claro e escuro).
-4. Modais/bottom sheets com o mesmo padrão (handle, raio, backdrop) e cards com raio/sombra idênticos em todo o app.
-5. Nenhuma regressão funcional (filtros, swipe, metas, sugestões, gráficos operando como antes).
-6. `tsc --noEmit` limpo; screenshots de validação nos 2 temas.
+1. Criar despesa com "3x" gera a despesa deste mês + texto "começa em {mês} e se repete até {mês final}".
+2. No mês seguinte, a parcela aparece como card fantasma (não conta no total de despesas reais).
+3. ✓ no fantasma cria a despesa real daquele mês com os mesmos dados.
+4. ✗ no fantasma abre o modal com as 2 opções; "só este mês" mantém as próximas; "todas as futuras" encerra a série ali.
+5. `tsc --noEmit` limpo; validado no emulador com uma série de teste.
 
 ## Link do Figma
 - (nenhum informado)
 
-## Ordem de execução
-ST1 (fundação + navbar + login, checkpoint) → ST2 (telas, checkpoint) → ST3 (form/sheets) → validação final.
+---
+
+## Decisões confirmadas (usuário)
+1. O stepper de parcelas **substitui** o switch "Repete no próximo mês?" (despesas antigas com `recurrent_id` continuam como estão, sem migração).
+2. Fantasmas **não entram** na soma do total gasto do mês — só despesas reais contam, até a confirmação.

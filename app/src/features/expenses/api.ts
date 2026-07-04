@@ -117,6 +117,11 @@ async function deleteExpense(id: string): Promise<void> {
   if (error) throw error;
 }
 
+async function deleteAllExpenses(userId: string): Promise<void> {
+  const { error } = await supabase.from('expenses').delete().eq('user_id', userId);
+  if (error) throw error;
+}
+
 async function toggleStatus(id: string, status: ExpenseStatus): Promise<void> {
   const { error } = await supabase.from('expenses').update({ status }).eq('id', id);
   if (error) throw error;
@@ -150,6 +155,15 @@ export function useUpdateExpense() {
 export function useDeleteExpense() {
   const invalidate = useInvalidateExpenses();
   return useMutation({ mutationFn: deleteExpense, onSuccess: invalidate });
+}
+
+/** Apaga todas as despesas do usuário (mantém categorias e metas). */
+export function useDeleteAllExpenses(userId: string) {
+  const invalidate = useInvalidateExpenses();
+  return useMutation({
+    mutationFn: () => deleteAllExpenses(userId),
+    onSuccess: invalidate,
+  });
 }
 
 export function useToggleStatus() {
