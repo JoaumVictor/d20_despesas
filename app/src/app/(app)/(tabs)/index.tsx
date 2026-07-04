@@ -23,6 +23,7 @@ import {
   type ExpenseWithCategory,
 } from '@/features/expenses/api';
 import { activeFilterCount, applyFilters, emptyFilters } from '@/features/expenses/filters';
+import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { periodToRange, shiftMonth } from '@/features/period/period';
 import { useAppStore } from '@/store/appStore';
@@ -148,6 +149,10 @@ export default function ExpensesScreen() {
         <PeriodFilter />
       </View>
 
+      <View style={styles.insights}>
+        <InsightsCarousel scope="despesas" max={5} />
+      </View>
+
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />
       ) : error ? (
@@ -237,6 +242,7 @@ const styles = StyleSheet.create({
   hello: { fontSize: 14 },
   total: { fontSize: 30, fontWeight: '800' },
   periodFilter: { paddingBottom: 8 },
+  insights: { paddingBottom: 8 },
   filterBtn: {
     width: 44,
     height: 44,

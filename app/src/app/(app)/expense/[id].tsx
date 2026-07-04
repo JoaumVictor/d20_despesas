@@ -20,12 +20,15 @@ import {
   useCreateExpense,
   useDeleteExpense,
   useExpense,
+  useExpensesByRange,
   useUpdateExpense,
   type ExpenseInput,
 } from '@/features/expenses/api';
+import { goalsForMonth, useGoals } from '@/features/goals/api';
+import { monthSpendByCategory } from '@/features/insights/engine';
 import type { ExpenseStatus } from '@/types/database';
 import { useTheme } from '@/theme/useTheme';
-import { centsToBRL, digitsToCents, formatDate, toISODate } from '@/utils/format';
+import { centsToBRL, digitsToCents, formatCurrency, formatDate, toISODate } from '@/utils/format';
 
 export default function ExpenseFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,6 +40,8 @@ export default function ExpenseFormScreen() {
 
   const { data: categories } = useCategories(userId);
   const { data: usage } = useCategoryUsage(userId);
+  const { data: goals } = useGoals(userId);
+  const { data: allExpenses } = useExpensesByRange(null);
   const { data: existing, isLoading: loadingExpense } = useExpense(id);
   const createExpense = useCreateExpense(userId ?? '');
   const updateExpense = useUpdateExpense();
@@ -62,6 +67,19 @@ export default function ExpenseFormScreen() {
   }, [existing]);
 
   const saving = createExpense.isPending || updateExpense.isPending;
+
+  // Aviso discreto de meta: gasto do mês na categoria selecionada vs. limite.
+  const goalHint = (() => {
+    if (!categoryId || !goals || !allExpenses) return null;
+    const now = new Date();
+    const mk = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const goal = goalsForMonth(goals, mk).find(
+      (g) => g.category_id === categoryId && g.kind === 'limit',
+    );
+    if (!goal) return null;
+    const spent = monthSpendByCategory(allExpenses, mk).get(categoryId) ?? 0;
+    return { spent, remaining: goal.amount - spent, amount: goal.amount };
+  })();
 
   async function handleSave() {
     if (amountCents <= 0) return Alert.alert('Atenção', 'Informe um valor válido.');
@@ -131,6 +149,15 @@ export default function ExpenseFormScreen() {
         value={categoryId}
         onChange={setCategoryId}
       />
+      {goalHint && (
+        <Text
+          style={[styles.goalHint, { color: goalHint.remaining >= 0 ? c.textMuted : c.danger }]}
+        >
+          {goalHint.remaining >= 0
+            ? `Você já gastou ${formatCurrency(goalHint.spent)} esse mês com essa categoria · restam ${formatCurrency(goalHint.remaining)} do limite de ${formatCurrency(goalHint.amount)}.`
+            : `Limite de ${formatCurrency(goalHint.amount)} estourado em ${formatCurrency(-goalHint.remaining)} este mês.`}
+        </Text>
+      )}
 
       {/* 3. Data — calendário */}
       <Text style={[styles.label, { color: c.text }]}>Data</Text>
@@ -222,6 +249,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   dateText: { fontSize: 16 },
+  goalHint: { fontSize: 12, marginTop: 8, lineHeight: 16 },
   textarea: {
     borderWidth: 1,
     borderRadius: 10,

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
+import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { InsightCard } from '@/features/stats/InsightCard';
 import { usePeriodStats } from '@/features/stats/api';
@@ -51,6 +52,11 @@ export default function ChartsScreen() {
 
       <View style={styles.filter}>
         <PeriodFilter />
+      </View>
+
+      {/* Cards históricos/metas — independem do filtro global de período */}
+      <View style={styles.carousel}>
+        <InsightsCarousel scope="graficos" />
       </View>
 
       {stats.isLoading ? (
@@ -152,6 +158,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8 },
   title: { fontSize: 24, fontWeight: '800' },
   filter: { paddingBottom: 12 },
+  carousel: { paddingBottom: 12 },
   scroll: { paddingHorizontal: 20, paddingBottom: 24, gap: 16 },
   insights: { gap: 10 },
   card: { borderWidth: 1, borderRadius: 16, padding: 16, gap: 12 },

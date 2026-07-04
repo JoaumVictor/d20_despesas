@@ -15,6 +15,20 @@ export type CategoryRow = {
   updated_at: string | null;
 };
 
+export type GoalKind = 'limit' | 'target';
+
+export type GoalRow = {
+  id: string;
+  user_id: string;
+  category_id: string;
+  kind: GoalKind;
+  amount: number;
+  /** null = recorrente (todo mês); senão YYYY-MM-01 do mês em que vale */
+  month: string | null;
+  created_at: string;
+  updated_at: string | null;
+};
+
 export type ExpenseRow = {
   id: string;
   user_id: string;
@@ -47,6 +61,12 @@ export interface Database {
           'id' | 'created_at' | 'updated_at' | 'recurrent_id' | 'count_part'
         >;
         Update: Partial<ExpenseRow>;
+        Relationships: [];
+      };
+      goals: {
+        Row: GoalRow;
+        Insert: Insert<GoalRow, 'id' | 'created_at' | 'updated_at' | 'month'>;
+        Update: Partial<GoalRow>;
         Relationships: [];
       };
     };
