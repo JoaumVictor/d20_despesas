@@ -45,10 +45,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       },
     ],
+    [
+      'expo-notifications',
+      {
+        color: '#01763B',
+      },
+    ],
   ],
   extra: {
     supabaseUrl: process.env.URL,
     supabaseAnonKey: process.env.KEY,
     googleWebClientId: process.env.GOOGLE_WEB_CLIENT_ID,
+    eas: {
+      projectId: 'c75c28f8-f4c6-428d-b086-1e56c63aef58',
+    },
   },
+  owner: 'victorfausto',
 });

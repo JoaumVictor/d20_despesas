@@ -21,13 +21,16 @@ export function CalendarModal({ visible, value, onSelect, onClose }: Props) {
   const [view, setView] = useState({ y: base.getFullYear(), m: base.getMonth() });
   const todayISO = toISODate(new Date());
 
-  const cells = useMemo(() => {
+  const weeks = useMemo(() => {
     const firstDay = new Date(view.y, view.m, 1).getDay();
     const days = new Date(view.y, view.m + 1, 0).getDate();
     const arr: (string | null)[] = [];
     for (let i = 0; i < firstDay; i++) arr.push(null);
     for (let d = 1; d <= days; d++) arr.push(toISODate(new Date(view.y, view.m, d)));
-    return arr;
+    while (arr.length % 7 !== 0) arr.push(null);
+    const result: (string | null)[][] = [];
+    for (let i = 0; i < arr.length; i += 7) result.push(arr.slice(i, i + 7));
+    return result;
   }, [view]);
 
   function shift(delta: number) {
@@ -70,32 +73,36 @@ export function CalendarModal({ visible, value, onSelect, onClose }: Props) {
           </View>
 
           <View style={styles.grid}>
-            {cells.map((iso, i) => {
-              if (!iso) return <View key={`e${i}`} style={styles.cell} />;
-              const day = Number(iso.slice(8, 10));
-              const selected = iso === value;
-              const isToday = iso === todayISO;
-              return (
-                <Pressable key={iso} style={styles.cell} onPress={() => pick(iso)}>
-                  <View
-                    style={[
-                      styles.dayCircle,
-                      selected && { backgroundColor: c.primary },
-                      !selected && isToday && { borderWidth: 1.5, borderColor: c.primary },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: selected ? c.primaryContrast : c.text,
-                        fontWeight: selected || isToday ? '700' : '400',
-                      }}
-                    >
-                      {day}
-                    </Text>
-                  </View>
-                </Pressable>
-              );
-            })}
+            {weeks.map((week, wi) => (
+              <View key={wi} style={styles.weekRowGrid}>
+                {week.map((iso, i) => {
+                  if (!iso) return <View key={`e${wi}-${i}`} style={styles.cell} />;
+                  const day = Number(iso.slice(8, 10));
+                  const selected = iso === value;
+                  const isToday = iso === todayISO;
+                  return (
+                    <Pressable key={iso} style={styles.cell} onPress={() => pick(iso)}>
+                      <View
+                        style={[
+                          styles.dayCircle,
+                          selected && { backgroundColor: c.primary },
+                          !selected && isToday && { borderWidth: 1.5, borderColor: c.primary },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: selected ? c.primaryContrast : c.text,
+                            fontWeight: selected || isToday ? '700' : '400',
+                          }}
+                        >
+                          {day}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
           </View>
 
           <Pressable style={styles.todayBtn} onPress={() => pick(todayISO)}>
@@ -123,9 +130,10 @@ const styles = StyleSheet.create({
   },
   monthLabel: { fontSize: 17, fontWeight: '700', textTransform: 'capitalize' },
   weekRow: { flexDirection: 'row' },
-  weekday: { width: `${100 / 7}%`, textAlign: 'center', fontSize: 12, fontWeight: '600' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginTop: 6 },
-  cell: { width: `${100 / 7}%`, alignItems: 'center', paddingVertical: 3 },
+  weekday: { flex: 1, textAlign: 'center', fontSize: 12, fontWeight: '600' },
+  grid: { marginTop: 6 },
+  weekRowGrid: { flexDirection: 'row' },
+  cell: { flex: 1, alignItems: 'center', paddingVertical: 3 },
   dayCircle: {
     width: 38,
     height: 38,

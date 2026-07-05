@@ -37,6 +37,7 @@ import {
   useUpdateReminder,
   type ReminderWithCategory,
 } from '@/features/reminders/api';
+import { useSyncReminderNotifications } from '@/features/reminders/notifications';
 import type { RecurringSuggestion } from '@/features/suggestions/engine';
 import { SuggestionCard } from '@/features/suggestions/SuggestionCard';
 import { useSuggestions } from '@/features/suggestions/useSuggestions';
@@ -73,6 +74,7 @@ export default function GoalsScreen() {
     isRefetching: isRefetchingExpenses,
   } = useExpensesByRange(null);
   const { data: monthReminders, isLoading: isLoadingReminders } = useMonthReminders();
+  useSyncReminderNotifications(monthReminders);
 
   const refreshing = isRefetchingGoals || isRefetchingExpenses;
   const onRefresh = useCallback(() => {
@@ -331,13 +333,12 @@ export default function GoalsScreen() {
             keyExtractor={(r) => r.id}
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
-              <Pressable onLongPress={() => confirmDeleteReminder(item)}>
-                <ReminderCard
-                  reminder={item}
-                  onPay={() => setPayTarget(item)}
-                  onEdit={() => openEditReminder(item)}
-                />
-              </Pressable>
+              <ReminderCard
+                reminder={item}
+                onPay={() => setPayTarget(item)}
+                onEdit={() => openEditReminder(item)}
+                onDelete={() => confirmDeleteReminder(item)}
+              />
             )}
             ListEmptyComponent={
               <View style={styles.empty}>

@@ -17,6 +17,8 @@ export interface ThemeColors {
   border: string;
   danger: string;
   dangerSoft: string;
+  warning: string;
+  warningSoft: string;
   success: string;
   successSoft: string;
   tabInactive: string;
@@ -37,6 +39,8 @@ export const lightColors: ThemeColors = {
   border: '#E2E8E4',
   danger: '#DC2626',
   dangerSoft: '#FDECEC',
+  warning: '#B45309',
+  warningSoft: '#FEF3C7',
   success: '#01763B',
   successSoft: '#E3F2E9',
   tabInactive: '#8FA096',
@@ -56,6 +60,8 @@ export const darkColors: ThemeColors = {
   border: '#233029',
   danger: '#F87171',
   dangerSoft: '#2C1517',
+  warning: '#FBBF24',
+  warningSoft: '#2E2508',
   success: '#3ACD7E',
   successSoft: '#0F2A1C',
   tabInactive: '#5E6E64',
