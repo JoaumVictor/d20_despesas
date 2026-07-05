@@ -51,6 +51,11 @@ export default function RootLayout() {
         persistOptions={{
           persister: queryPersister,
           maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
+          // Muda sempre que o formato de algum dado cacheado mudar de um
+          // jeito incompatível (ex.: Set/Map → array) — invalida qualquer
+          // cache antigo salvo em vez de tentar reidratar um formato que o
+          // código novo não entende mais.
+          buster: 'v2-array-not-set-map',
         }}
       >
         <AuthProvider>

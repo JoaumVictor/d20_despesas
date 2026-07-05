@@ -63,9 +63,17 @@ async function fetchReminders(isLocal: boolean): Promise<ReminderWithCategory[]>
   return (data ?? []) as unknown as ReminderWithCategory[];
 }
 
-async function fetchCompletionsLocal(): Promise<
-  Map<string, { resolution: ReminderResolution; expenseId: string | null }>
-> {
+interface CompletionEntry {
+  key: string;
+  resolution: ReminderResolution;
+  expenseId: string | null;
+}
+
+/**
+ * Devolve array (não Map) — o cache do React Query é persistido em JSON no
+ * AsyncStorage, e um Map vira `{}` (sem `.get()`) depois desse round-trip.
+ */
+async function fetchCompletionsLocal(): Promise<CompletionEntry[]> {
   const db = await getLocalDb();
   const rows = await db.getAllAsync<{
     reminder_id: string;
@@ -73,32 +81,24 @@ async function fetchCompletionsLocal(): Promise<
     resolution: ReminderResolution;
     expense_id: string | null;
   }>('SELECT reminder_id, month, resolution, expense_id FROM reminder_completions');
-  const map = new Map<string, { resolution: ReminderResolution; expenseId: string | null }>();
-  for (const row of rows) {
-    map.set(`${row.reminder_id}:${row.month}`, {
-      resolution: row.resolution,
-      expenseId: row.expense_id,
-    });
-  }
-  return map;
+  return rows.map((row) => ({
+    key: `${row.reminder_id}:${row.month}`,
+    resolution: row.resolution,
+    expenseId: row.expense_id,
+  }));
 }
 
-async function fetchCompletions(
-  isLocal: boolean,
-): Promise<Map<string, { resolution: ReminderResolution; expenseId: string | null }>> {
+async function fetchCompletions(isLocal: boolean): Promise<CompletionEntry[]> {
   if (isLocal) return fetchCompletionsLocal();
   const { data, error } = await supabase
     .from('reminder_completions')
     .select('reminder_id, month, resolution, expense_id');
   if (error) throw error;
-  const map = new Map<string, { resolution: ReminderResolution; expenseId: string | null }>();
-  for (const row of data ?? []) {
-    map.set(`${row.reminder_id}:${row.month}`, {
-      resolution: row.resolution,
-      expenseId: row.expense_id,
-    });
-  }
-  return map;
+  return (data ?? []).map((row) => ({
+    key: `${row.reminder_id}:${row.month}`,
+    resolution: row.resolution,
+    expenseId: row.expense_id,
+  }));
 }
 
 export function useReminders() {
@@ -110,19 +110,21 @@ export function useReminders() {
 export function useMonthReminders(): { data: MonthReminder[] | undefined; isLoading: boolean } {
   const { isLocal } = useAuth();
   const { data: reminders, isLoading: loadingReminders } = useReminders();
-  const { data: completions, isLoading: loadingCompletions } = useQuery({
+  const { data: completionsList, isLoading: loadingCompletions } = useQuery({
     queryKey: completionsKey,
     queryFn: () => fetchCompletions(isLocal),
   });
 
   const data = useMemo(() => {
-    if (!reminders || !completions) return undefined;
+    if (!reminders || !completionsList) return undefined;
+    const safeList = Array.isArray(completionsList) ? completionsList : [];
+    const completions = new Map(safeList.map((c) => [c.key, c]));
     const mk = firstOfMonthISO(new Date());
     return reminders.map((r) => ({
       ...r,
       completion: completions.get(`${r.id}:${mk}`) ?? null,
     }));
-  }, [reminders, completions]);
+  }, [reminders, completionsList]);
 
   return { data, isLoading: loadingReminders || loadingCompletions };
 }

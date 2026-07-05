@@ -66,22 +66,26 @@ async function fetchActiveSeries(isLocal: boolean): Promise<SeriesWithCategory[]
   return (data ?? []) as unknown as SeriesWithCategory[];
 }
 
-/** Ocorrências (confirmadas/canceladas) de todas as séries do usuário. */
-async function fetchOccurrencesLocal(): Promise<Set<string>> {
+/**
+ * Ocorrências (confirmadas/canceladas) de todas as séries do usuário.
+ * Devolve array (não Set) — o cache do React Query é persistido em JSON no
+ * AsyncStorage, e um Set vira `{}` (sem `.has()`) depois desse round-trip.
+ */
+async function fetchOccurrencesLocal(): Promise<string[]> {
   const db = await getLocalDb();
   const rows = await db.getAllAsync<{ series_id: string; installment_number: number }>(
     'SELECT series_id, installment_number FROM installment_occurrences',
   );
-  return new Set(rows.map((o) => `${o.series_id}:${o.installment_number}`));
+  return rows.map((o) => `${o.series_id}:${o.installment_number}`);
 }
 
-async function fetchOccurrences(isLocal: boolean): Promise<Set<string>> {
+async function fetchOccurrences(isLocal: boolean): Promise<string[]> {
   if (isLocal) return fetchOccurrencesLocal();
   const { data, error } = await supabase
     .from('installment_occurrences')
     .select('series_id, installment_number');
   if (error) throw error;
-  return new Set((data ?? []).map((o) => `${o.series_id}:${o.installment_number}`));
+  return (data ?? []).map((o) => `${o.series_id}:${o.installment_number}`);
 }
 
 export function useInstallmentSeries() {
@@ -127,10 +131,11 @@ function dateWithinMonth(monthIso: string): string {
  */
 export function useGhostInstallments(range: DateRange | null): GhostInstallment[] {
   const { data: series } = useInstallmentSeries();
-  const { data: decided } = useDecidedOccurrences();
+  const { data: decidedList } = useDecidedOccurrences();
 
   return useMemo(() => {
-    if (!series || !decided || !range) return [];
+    if (!series || !decidedList || !range) return [];
+    const decided = new Set(Array.isArray(decidedList) ? decidedList : []);
     const ghosts: GhostInstallment[] = [];
 
     for (const s of series) {
@@ -157,7 +162,7 @@ export function useGhostInstallments(range: DateRange | null): GhostInstallment[
       }
     }
     return ghosts;
-  }, [series, decided, range]);
+  }, [series, decidedList, range]);
 }
 
 function useInvalidateInstallments() {
