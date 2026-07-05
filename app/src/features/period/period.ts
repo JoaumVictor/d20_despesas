@@ -1,4 +1,4 @@
-import { formatMonthLabel, monthRange, toISODate } from '@/utils/format';
+import { formatMonthLabel, monthRange, parseISODate, toISODate } from '@/utils/format';
 
 /**
  * Período global do app (filtro). "month" é um modo navegável (setas + swipe);
@@ -49,7 +49,7 @@ export function periodToRange(period: Period): DateRange | null {
   const today = new Date();
   switch (period.kind) {
     case 'month': {
-      const { start, end } = monthRange(new Date(period.ref));
+      const { start, end } = monthRange(parseISODate(period.ref));
       return { start, end };
     }
     case 'today':
@@ -76,7 +76,7 @@ export function periodToRange(period: Period): DateRange | null {
 export function periodLabel(period: Period): string {
   switch (period.kind) {
     case 'month':
-      return formatMonthLabel(new Date(period.ref));
+      return formatMonthLabel(parseISODate(period.ref));
     case 'today':
       return 'Hoje';
     case 'yesterday':
@@ -100,6 +100,6 @@ export function periodKey(period: Period): string {
 /** Avança/volta o mês (só no modo Mês). */
 export function shiftMonth(period: Period, delta: number): Period {
   if (period.kind !== 'month') return period;
-  const d = new Date(period.ref);
+  const d = parseISODate(period.ref);
   return { kind: 'month', ref: firstOfMonthISO(new Date(d.getFullYear(), d.getMonth() + delta, 1)) };
 }

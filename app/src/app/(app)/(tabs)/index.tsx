@@ -37,7 +37,7 @@ import { periodToRange, shiftMonth } from '@/features/period/period';
 import { useAppStore } from '@/store/appStore';
 import { radius, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
-import { formatCurrency } from '@/utils/format';
+import { formatCurrency, parseISODate } from '@/utils/format';
 
 const SLIDE_OFFSET = 60;
 
@@ -106,7 +106,7 @@ export default function ExpensesScreen() {
     const prev = prevRef.current;
     prevRef.current = period.ref;
     if (!prev || prev === period.ref) return;
-    const dir = new Date(period.ref) > new Date(prev) ? 1 : -1;
+    const dir = parseISODate(period.ref) > parseISODate(prev) ? 1 : -1;
     tx.setValue(dir * SLIDE_OFFSET);
     op.setValue(0.3);
     Animated.parallel([

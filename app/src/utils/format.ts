@@ -44,3 +44,16 @@ export function toISODate(date: Date): string {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+/**
+ * Interpreta uma data ISO (YYYY-MM-DD) como meia-noite LOCAL.
+ * `new Date('YYYY-MM-DD')` nativo interpreta a string como UTC — em fusos
+ * com offset negativo (ex.: Brasil, UTC-3) isso "puxa" a data um dia (ou um
+ * mês inteiro, na virada) pra trás assim que `.getFullYear()`/`.getMonth()`
+ * leem de volta em hora local. Use sempre esta função pra parsear strings
+ * YYYY-MM-DD — nunca `new Date(iso)` diretamente.
+ */
+export function parseISODate(iso: string): Date {
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}

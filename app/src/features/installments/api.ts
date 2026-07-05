@@ -6,7 +6,7 @@ import { getLocalDb, LOCAL_USER_ID, newId, nowISO } from '@/lib/localDb';
 import { supabase } from '@/lib/supabase';
 import type { InstallmentSeriesRow } from '@/types/database';
 import { firstOfMonthISO } from '@/features/period/period';
-import { toISODate } from '@/utils/format';
+import { parseISODate, toISODate } from '@/utils/format';
 
 export interface SeriesWithCategory extends InstallmentSeriesRow {
   category: { id: string; name: string; icon: string; color: string } | null;
@@ -188,7 +188,7 @@ export function useCreateInstallmentPurchase(userId: string) {
   const invalidate = useInvalidateInstallments();
   return useMutation({
     mutationFn: async (input: CreateInstallmentInput) => {
-      const startMonth = firstOfMonthISO(new Date(input.startDate));
+      const startMonth = firstOfMonthISO(parseISODate(input.startDate));
 
       if (userId === LOCAL_USER_ID) {
         const db = await getLocalDb();

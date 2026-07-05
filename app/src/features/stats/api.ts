@@ -6,7 +6,7 @@ import {
   type Period,
   type DateRange,
 } from '@/features/period/period';
-import { formatCurrency, toISODate } from '@/utils/format';
+import { formatCurrency, parseISODate, toISODate } from '@/utils/format';
 
 export interface CategorySlice {
   id: string;
@@ -92,13 +92,13 @@ function buildDaily(expenses: ExpenseWithCategory[], range: DateRange | null): D
   let start: Date;
   let end: Date;
   if (range) {
-    start = new Date(range.start);
-    end = new Date(range.end);
+    start = parseISODate(range.start);
+    end = parseISODate(range.end);
   } else {
     const isos = [...byDay.keys()].sort();
     if (isos.length === 0) return [];
-    start = new Date(isos[0]);
-    end = new Date(isos[isos.length - 1]);
+    start = parseISODate(isos[0]);
+    end = parseISODate(isos[isos.length - 1]);
   }
 
   const span = Math.round((end.getTime() - start.getTime()) / DAY_MS) + 1;
@@ -114,7 +114,7 @@ function buildDaily(expenses: ExpenseWithCategory[], range: DateRange | null): D
   }
   return [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? -1 : 1))
-    .map(([iso, value]) => ({ day: new Date(iso).getDate(), value, dateISO: iso }));
+    .map(([iso, value]) => ({ day: parseISODate(iso).getDate(), value, dateISO: iso }));
 }
 
 function buildInsights(
