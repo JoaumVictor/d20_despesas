@@ -9,7 +9,7 @@ const { version } = require('./package.json');
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
-  name: 'Despesas',
+  name: 'D20 Despesas',
   slug: 'despesas',
   // Fonte única de verdade: package.json. Nunca mais desalinha da versão exibida no app.
   version,
@@ -23,8 +23,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     package: 'com.victorfausto.despesas',
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
-      foregroundImage: './assets/d20_despesas.png',
+      // A máscara adaptativa do Android corta a borda do ícone — usa uma
+      // versão com margem (não o d20_despesas.png cru) senão o desenho
+      // aparece cortado/"com zoom".
+      backgroundColor: '#01763B',
+      foregroundImage: './assets/android-icon-foreground-padded.png',
       monochromeImage: './assets/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
