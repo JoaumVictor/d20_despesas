@@ -25,10 +25,10 @@ interface PrefRowProps {
   onChange: (v: boolean) => void;
 }
 
-type DangerAction = 'expenses' | 'all' | null;
+type DangerAction = 'expenses' | 'all' | 'local-exit' | null;
 
 export default function SettingsScreen() {
-  const { signOut, session } = useAuth();
+  const { signOut, session, isLocal, leaveLocalMode } = useAuth();
   const userId = session?.user.id;
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
@@ -93,6 +93,15 @@ export default function SettingsScreen() {
     }
   }
 
+  async function handleConfirmLocalExit() {
+    try {
+      setDangerAction(null);
+      await signOut(); // em modo local, signOut() já apaga tudo e desliga a flag
+    } catch (err) {
+      Alert.alert('Erro', err instanceof Error ? err.message : 'Tente novamente.');
+    }
+  }
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
       <ScreenHeader title="Configurações" />
@@ -151,7 +160,13 @@ export default function SettingsScreen() {
         <View style={card}>
           <View style={styles.profileRow}>
             <View style={styles.avatarWrap}>
-              {avatarUrl ? (
+              {isLocal ? (
+                <View
+                  style={[styles.avatar, styles.avatarFallback, { backgroundColor: c.primarySoft }]}
+                >
+                  <MaterialCommunityIcons name="cellphone-lock" size={26} color={c.primary} />
+                </View>
+              ) : avatarUrl ? (
                 <Image source={{ uri: avatarUrl }} style={styles.avatar} />
               ) : (
                 <View
@@ -173,21 +188,36 @@ export default function SettingsScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.profileName, { color: c.text }]} numberOfLines={1}>
-                {displayName}
+                {isLocal ? 'Perfil local' : displayName}
               </Text>
               <Text style={[styles.profileEmail, { color: c.textMuted }]} numberOfLines={1}>
-                {session?.user.email}
+                {isLocal ? 'Dados só neste aparelho, sem nuvem' : session?.user.email}
               </Text>
             </View>
           </View>
           <View style={[styles.divider, { backgroundColor: c.border }]} />
-          <Pressable style={styles.row} onPress={signOut}>
-            <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
-              <MaterialCommunityIcons name="logout" size={18} color={c.danger} />
-            </View>
-            <Text style={[styles.rowTitle, { color: c.danger, flex: 1 }]}>Sair da conta</Text>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
-          </Pressable>
+          {isLocal ? (
+            <Pressable style={styles.row} onPress={leaveLocalMode}>
+              <View style={[styles.iconBadge, { backgroundColor: c.primarySoft }]}>
+                <MaterialCommunityIcons name="logout" size={18} color={c.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: c.text }]}>Sair do modo local</Text>
+                <Text style={[styles.rowHint, { color: c.textMuted }]}>
+                  Volta pro login sem apagar nada — os dados continuam aqui.
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+            </Pressable>
+          ) : (
+            <Pressable style={styles.row} onPress={signOut}>
+              <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+                <MaterialCommunityIcons name="logout" size={18} color={c.danger} />
+              </View>
+              <Text style={[styles.rowTitle, { color: c.danger, flex: 1 }]}>Sair da conta</Text>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+            </Pressable>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.danger }]}>Zona de perigo</Text>
@@ -204,19 +234,52 @@ export default function SettingsScreen() {
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
           </Pressable>
-          <View style={[styles.divider, { backgroundColor: c.border }]} />
-          <Pressable style={styles.row} onPress={() => setDangerAction('all')}>
-            <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
-              <MaterialCommunityIcons name="account-remove-outline" size={18} color={c.danger} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rowTitle, { color: c.text }]}>Excluir todos os meus dados</Text>
-              <Text style={[styles.rowHint, { color: c.textMuted }]}>
-                Apaga despesas e metas, e sai da conta.
-              </Text>
-            </View>
-            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
-          </Pressable>
+          {!isLocal && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              <Pressable style={styles.row} onPress={() => setDangerAction('all')}>
+                <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+                  <MaterialCommunityIcons
+                    name="account-remove-outline"
+                    size={18}
+                    color={c.danger}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowTitle, { color: c.text }]}>
+                    Excluir todos os meus dados
+                  </Text>
+                  <Text style={[styles.rowHint, { color: c.textMuted }]}>
+                    Apaga despesas e metas, e sai da conta.
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+              </Pressable>
+            </>
+          )}
+          {isLocal && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              <Pressable style={styles.row} onPress={() => setDangerAction('local-exit')}>
+                <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
+                  <MaterialCommunityIcons
+                    name="delete-forever-outline"
+                    size={18}
+                    color={c.danger}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.rowTitle, { color: c.text }]}>
+                    Apagar dados locais e sair
+                  </Text>
+                  <Text style={[styles.rowHint, { color: c.textMuted }]}>
+                    Apaga tudo salvo neste aparelho. Não tem como desfazer.
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+              </Pressable>
+            </>
+          )}
         </View>
       </ScrollView>
 
@@ -237,6 +300,15 @@ export default function SettingsScreen() {
         confirmLabel="Excluir tudo e sair"
         loading={deleting}
         onConfirm={handleConfirmAll}
+        onClose={() => setDangerAction(null)}
+      />
+
+      <ConfirmDeleteSheet
+        visible={dangerAction === 'local-exit'}
+        title="Apagar dados locais e sair"
+        description="Isso apaga permanentemente todas as despesas, categorias, metas, lembretes e parcelamentos salvos neste aparelho. Não tem como desfazer nem recuperar — não existe cópia na nuvem."
+        confirmLabel="Apagar tudo e sair"
+        onConfirm={handleConfirmLocalExit}
         onClose={() => setDangerAction(null)}
       />
     </SafeAreaView>

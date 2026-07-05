@@ -17,8 +17,9 @@ import { radius, shadowFloating, spacing, type } from '@/theme/tokens';
 const GOOGLE_BLUE = '#4285F4';
 
 export default function LoginScreen() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, enterLocalMode } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [loadingLocal, setLoadingLocal] = useState(false);
 
   async function handleLogin() {
     setLoading(true);
@@ -29,6 +30,27 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleUseOffline() {
+    Alert.alert(
+      'Usar 100% offline',
+      'Seus dados ficam só neste aparelho, sem nenhuma conta e sem nenhum contato com o servidor. Se desinstalar o app ou trocar de celular, os dados se perdem — não tem backup na nuvem.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Usar offline',
+          onPress: async () => {
+            setLoadingLocal(true);
+            try {
+              await enterLocalMode();
+            } finally {
+              setLoadingLocal(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -71,8 +93,20 @@ export default function LoginScreen() {
               </>
             )}
           </Pressable>
+          <Pressable
+            style={({ pressed }) => [pressed && { opacity: 0.7 }]}
+            onPress={handleUseOffline}
+            disabled={loading || loadingLocal}
+          >
+            {loadingLocal ? (
+              <ActivityIndicator color="rgba(255,255,255,0.85)" />
+            ) : (
+              <Text style={styles.offlineLink}>Usar sem conta (100% offline)</Text>
+            )}
+          </Pressable>
+
           <Text style={styles.privacy}>
-            Seus dados ficam apenas na sua conta, protegidos por login.
+            Com o Google, seus dados ficam na sua conta. No modo offline, ficam só no aparelho.
           </Text>
         </View>
       </SafeAreaView>
@@ -112,6 +146,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
   },
   googleText: { ...type.bodyBold, fontSize: 16, color: '#111B14' },
+  offlineLink: {
+    ...type.bodyBold,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.85)',
+    textAlign: 'center',
+    textDecorationLine: 'underline',
+  },
   privacy: {
     ...type.caption,
     color: 'rgba(255,255,255,0.6)',

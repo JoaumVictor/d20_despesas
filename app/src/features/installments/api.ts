@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/features/auth/AuthContext';
 import type { DateRange } from '@/features/period/period';
+import { getLocalDb, LOCAL_USER_ID, newId, nowISO } from '@/lib/localDb';
+import { supabase } from '@/lib/supabase';
 import type { InstallmentSeriesRow } from '@/types/database';
 import { firstOfMonthISO } from '@/features/period/period';
 import { toISODate } from '@/utils/format';
@@ -25,7 +27,37 @@ export interface GhostInstallment {
 
 const seriesKey = ['installment-series'] as const;
 
-async function fetchActiveSeries(): Promise<SeriesWithCategory[]> {
+async function fetchActiveSeriesLocal(): Promise<SeriesWithCategory[]> {
+  const db = await getLocalDb();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT s.*, c.id as cat_id, c.name as cat_name, c.icon as cat_icon, c.color as cat_color ' +
+      'FROM installment_series s LEFT JOIN categories c ON c.id = s.category_id ' +
+      'ORDER BY s.created_at DESC',
+  );
+  return rows.map((row) => ({
+    id: row.id as string,
+    user_id: row.user_id as string,
+    category_id: row.category_id as string,
+    description: row.description as string,
+    amount: row.amount as number,
+    total_installments: row.total_installments as number,
+    start_month: row.start_month as string,
+    cancelled_from: row.cancelled_from as number | null,
+    created_at: row.created_at as string,
+    updated_at: (row.updated_at as string | null) ?? null,
+    category: row.cat_id
+      ? {
+          id: row.cat_id as string,
+          name: row.cat_name as string,
+          icon: row.cat_icon as string,
+          color: row.cat_color as string,
+        }
+      : null,
+  }));
+}
+
+async function fetchActiveSeries(isLocal: boolean): Promise<SeriesWithCategory[]> {
+  if (isLocal) return fetchActiveSeriesLocal();
   const { data, error } = await supabase
     .from('installment_series')
     .select('*, category:categories(id, name, icon, color)')
@@ -35,7 +67,16 @@ async function fetchActiveSeries(): Promise<SeriesWithCategory[]> {
 }
 
 /** Ocorrências (confirmadas/canceladas) de todas as séries do usuário. */
-async function fetchOccurrences(): Promise<Set<string>> {
+async function fetchOccurrencesLocal(): Promise<Set<string>> {
+  const db = await getLocalDb();
+  const rows = await db.getAllAsync<{ series_id: string; installment_number: number }>(
+    'SELECT series_id, installment_number FROM installment_occurrences',
+  );
+  return new Set(rows.map((o) => `${o.series_id}:${o.installment_number}`));
+}
+
+async function fetchOccurrences(isLocal: boolean): Promise<Set<string>> {
+  if (isLocal) return fetchOccurrencesLocal();
   const { data, error } = await supabase
     .from('installment_occurrences')
     .select('series_id, installment_number');
@@ -44,11 +85,16 @@ async function fetchOccurrences(): Promise<Set<string>> {
 }
 
 export function useInstallmentSeries() {
-  return useQuery({ queryKey: seriesKey, queryFn: fetchActiveSeries });
+  const { isLocal } = useAuth();
+  return useQuery({ queryKey: seriesKey, queryFn: () => fetchActiveSeries(isLocal) });
 }
 
 function useDecidedOccurrences() {
-  return useQuery({ queryKey: ['installment-occurrences'], queryFn: fetchOccurrences });
+  const { isLocal } = useAuth();
+  return useQuery({
+    queryKey: ['installment-occurrences'],
+    queryFn: () => fetchOccurrences(isLocal),
+  });
 }
 
 function addMonths(iso: string, delta: number): string {
@@ -139,6 +185,26 @@ export function useCreateInstallmentPurchase(userId: string) {
     mutationFn: async (input: CreateInstallmentInput) => {
       const startMonth = firstOfMonthISO(new Date(input.startDate));
 
+      if (userId === LOCAL_USER_ID) {
+        const db = await getLocalDb();
+        const seriesId = newId();
+        const expenseId = newId();
+        const now = nowISO();
+        await db.runAsync(
+          'INSERT INTO installment_series (id, user_id, category_id, description, amount, total_installments, start_month, cancelled_from, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, NULL)',
+          [seriesId, userId, input.categoryId, input.description, input.amount, input.totalInstallments, startMonth, now],
+        );
+        await db.runAsync(
+          'INSERT INTO expenses (id, user_id, recurrent_id, category_id, count_part, description, date_transaction, price, status, created_at, updated_at) VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, NULL)',
+          [expenseId, userId, input.categoryId, input.description, input.startDate, input.amount, 'PAY', now],
+        );
+        await db.runAsync(
+          'INSERT INTO installment_occurrences (id, series_id, installment_number, month, status, expense_id, created_at) VALUES (?, ?, 1, ?, ?, ?, ?)',
+          [newId(), seriesId, startMonth, 'confirmed', expenseId, now],
+        );
+        return;
+      }
+
       const { data: series, error: seriesErr } = await supabase
         .from('installment_series')
         .insert({
@@ -185,6 +251,21 @@ export function useConfirmInstallment(userId: string) {
   const invalidate = useInvalidateInstallments();
   return useMutation({
     mutationFn: async (ghost: GhostInstallment) => {
+      if (userId === LOCAL_USER_ID) {
+        const db = await getLocalDb();
+        const expenseId = newId();
+        const now = nowISO();
+        await db.runAsync(
+          'INSERT INTO expenses (id, user_id, recurrent_id, category_id, count_part, description, date_transaction, price, status, created_at, updated_at) VALUES (?, ?, NULL, ?, 1, ?, ?, ?, ?, ?, NULL)',
+          [expenseId, userId, ghost.categoryId, ghost.description, dateWithinMonth(ghost.month), ghost.amount, 'PAY', now],
+        );
+        await db.runAsync(
+          'INSERT INTO installment_occurrences (id, series_id, installment_number, month, status, expense_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [newId(), ghost.seriesId, ghost.installmentNumber, ghost.month, 'confirmed', expenseId, now],
+        );
+        return;
+      }
+
       const { data: expense, error: expenseErr } = await supabase
         .from('expenses')
         .insert({
@@ -215,6 +296,7 @@ export function useConfirmInstallment(userId: string) {
 /** Cancela uma parcela: só esta, ou esta e todas as futuras (encerra a série). */
 export function useCancelInstallment() {
   const invalidate = useInvalidateInstallments();
+  const { isLocal } = useAuth();
   return useMutation({
     mutationFn: async ({
       ghost,
@@ -223,6 +305,21 @@ export function useCancelInstallment() {
       ghost: GhostInstallment;
       scope: 'this' | 'remaining';
     }) => {
+      if (isLocal) {
+        const db = await getLocalDb();
+        await db.runAsync(
+          'INSERT INTO installment_occurrences (id, series_id, installment_number, month, status, expense_id, created_at) VALUES (?, ?, ?, ?, ?, NULL, ?)',
+          [newId(), ghost.seriesId, ghost.installmentNumber, ghost.month, 'cancelled', nowISO()],
+        );
+        if (scope === 'remaining') {
+          await db.runAsync('UPDATE installment_series SET cancelled_from = ? WHERE id = ?', [
+            ghost.installmentNumber,
+            ghost.seriesId,
+          ]);
+        }
+        return;
+      }
+
       const { error: occErr } = await supabase.from('installment_occurrences').insert({
         series_id: ghost.seriesId,
         installment_number: ghost.installmentNumber,

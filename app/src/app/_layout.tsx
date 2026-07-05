@@ -1,10 +1,11 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
+import { queryPersister } from '@/lib/persister';
 import { queryClient } from '@/lib/queryClient';
 import { useTheme, useThemeName } from '@/theme/useTheme';
 
@@ -45,12 +46,18 @@ export default function RootLayout() {
   const themeName = useThemeName();
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{
+          persister: queryPersister,
+          maxAge: 1000 * 60 * 60 * 24 * 7, // 7 dias
+        }}
+      >
         <AuthProvider>
           <StatusBar style={themeName === 'dark' ? 'light' : 'dark'} />
           <RootNavigator />
         </AuthProvider>
-      </QueryClientProvider>
+      </PersistQueryClientProvider>
     </SafeAreaProvider>
   );
 }

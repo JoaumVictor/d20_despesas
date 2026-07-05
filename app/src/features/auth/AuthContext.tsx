@@ -9,6 +9,13 @@ import {
   type ReactNode,
 } from 'react';
 import { env } from '@/lib/env';
+import {
+  buildLocalSession,
+  enableLocalMode,
+  exitLocalMode,
+  isLocalModeEnabled,
+  leaveLocalMode,
+} from '@/lib/localMode';
 import { supabase } from '@/lib/supabase';
 
 /**
@@ -48,7 +55,13 @@ function configureGoogleSignin() {
 interface AuthContextValue {
   session: Session | null;
   initializing: boolean;
+  /** true = perfil 100% local (SQLite no aparelho), sem nenhum contato com o Supabase. */
+  isLocal: boolean;
   signInWithGoogle: () => Promise<void>;
+  /** Entra no modo local: nenhuma conta, nenhuma chamada de rede, dados só no aparelho. */
+  enterLocalMode: () => Promise<void>;
+  /** Sai do modo local SEM apagar dados — volta pro login, dados continuam salvos. */
+  leaveLocalMode: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -57,22 +70,36 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [isLocal, setIsLocal] = useState(false);
 
   useEffect(() => {
     configureGoogleSignin();
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    let unsubscribe: (() => void) | undefined;
+
+    (async () => {
+      const local = await isLocalModeEnabled();
+      if (local) {
+        // Modo local: nunca chama o Supabase, nem getSession nem o listener de auth.
+        setIsLocal(true);
+        setSession(buildLocalSession());
+        setInitializing(false);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setInitializing(false);
-    });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
-    });
+      const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
+        setSession(next);
+      });
+      unsubscribe = () => sub.subscription.unsubscribe();
+    })();
 
-    return () => sub.subscription.unsubscribe();
+    return () => unsubscribe?.();
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -100,14 +127,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signOut = useCallback(async () => {
-    await googleSignin?.GoogleSignin.signOut().catch(() => undefined);
-    await supabase.auth.signOut();
+  const enterLocalMode = useCallback(async () => {
+    await enableLocalMode();
+    setIsLocal(true);
+    setSession(buildLocalSession());
   }, []);
 
+  const leaveLocalModeCb = useCallback(async () => {
+    await leaveLocalMode();
+    setIsLocal(false);
+    setSession(null);
+  }, []);
+
+  const signOut = useCallback(async () => {
+    if (isLocal) {
+      await exitLocalMode();
+      setIsLocal(false);
+      setSession(null);
+      return;
+    }
+    await googleSignin?.GoogleSignin.signOut().catch(() => undefined);
+    await supabase.auth.signOut();
+  }, [isLocal]);
+
   const value = useMemo(
-    () => ({ session, initializing, signInWithGoogle, signOut }),
-    [session, initializing, signInWithGoogle, signOut],
+    () => ({
+      session,
+      initializing,
+      isLocal,
+      signInWithGoogle,
+      enterLocalMode,
+      leaveLocalMode: leaveLocalModeCb,
+      signOut,
+    }),
+    [session, initializing, isLocal, signInWithGoogle, enterLocalMode, leaveLocalModeCb, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -51,6 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         color: '#01763B',
       },
     ],
+    'expo-sqlite',
   ],
   extra: {
     supabaseUrl: process.env.URL,
