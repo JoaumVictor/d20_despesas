@@ -27,6 +27,8 @@ export interface InsightContext {
   expenses: ExpenseWithCategory[]; // all-time, ordenado desc por data
   goals: GoalWithCategory[];
   now: Date;
+  /** se falso, o usuário não quer saber de pago/em aberto — esconde esse tipo de card */
+  showPaidStatus: boolean;
 }
 
 const MONTHS_PT = [
@@ -339,28 +341,77 @@ const weekdayPattern: Generator = ({ expenses }) => {
   ];
 };
 
+/**
+ * Compara a média diária dos dias já decorridos deste mês contra a média
+ * diária dos MESMOS primeiros N dias dos meses anteriores (não o mês inteiro
+ * deles) — senão os primeiros dias do mês (quando aluguel/cartão/fatura
+ * costumam cair) sempre pareceriam "acima da média" frente a um mês inteiro
+ * já diluído.
+ */
+/** Dia da semana em que o gasto costuma ser mais baixo (média por data, não por lançamento). */
+const weekdaySaverPattern: Generator = ({ expenses }) => {
+  if (expenses.length < 10) return [];
+  const totals = new Array(7).fill(0) as number[];
+  const datesByWeekday: Set<string>[] = Array.from({ length: 7 }, () => new Set());
+  for (const e of expenses) {
+    const dateStr = e.date_transaction.slice(0, 10);
+    const dow = new Date(`${dateStr}T00:00:00`).getDay();
+    totals[dow] += e.price;
+    datesByWeekday[dow].add(dateStr);
+  }
+  const avgs = totals.map((t, i) => (datesByWeekday[i].size > 0 ? t / datesByWeekday[i].size : NaN));
+  let day = -1;
+  let min = Infinity;
+  avgs.forEach((avg, i) => {
+    if (!Number.isNaN(avg) && avg < min) {
+      min = avg;
+      day = i;
+    }
+  });
+  if (day < 0 || min <= 0) return [];
+  return [
+    {
+      id: 'weekday-saver',
+      icon: 'piggy-bank-outline',
+      tone: 'success',
+      title: 'Seu dia de economizar',
+      text: `${WEEKDAYS_PT[day].charAt(0).toUpperCase() + WEEKDAYS_PT[day].slice(1)} é o dia da semana em que você geralmente gasta menos (média de ${formatCurrency(min)}).`,
+      scopes: ['graficos'],
+      priority: 22,
+    },
+  ];
+};
+
 const dailyAverage: Generator = ({ expenses, now }) => {
   const mk = monthKeyOf(now);
+  const day = now.getDate();
+  if (day < 3) return []; // poucos dias decorridos = comparação muito ruidosa
+
   let cur = 0;
-  const allMonths = new Map<string, number>();
+  const monthsSeen = new Set<string>();
+  const histSameWindow = new Map<string, number>();
+
   for (const e of expenses) {
     const k = e.date_transaction.slice(0, 7);
-    allMonths.set(k, (allMonths.get(k) ?? 0) + e.price);
-    if (k === mk) cur += e.price;
+    monthsSeen.add(k);
+    if (k === mk) {
+      cur += e.price;
+      continue;
+    }
+    const d = Number(e.date_transaction.slice(8, 10));
+    if (d <= day) {
+      histSameWindow.set(k, (histSameWindow.get(k) ?? 0) + e.price);
+    }
   }
-  if (allMonths.size < 2 || cur <= 0) return [];
-  const day = now.getDate();
+
+  const histMonths = [...monthsSeen].filter((k) => k !== mk);
+  if (histMonths.length < 2 || cur <= 0) return [];
+
+  const histTotal = histMonths.reduce((s, k) => s + (histSameWindow.get(k) ?? 0), 0);
   const curAvg = cur / day;
-  let histTotal = 0;
-  let histDays = 0;
-  for (const [k, total] of allMonths) {
-    if (k === mk) continue;
-    const [y, m] = k.split('-').map(Number);
-    histTotal += total;
-    histDays += new Date(y, m, 0).getDate();
-  }
-  const histAvg = histTotal / Math.max(histDays, 1);
+  const histAvg = histTotal / (histMonths.length * day);
   if (histAvg <= 0) return [];
+
   const delta = ((curAvg - histAvg) / histAvg) * 100;
   const up = delta >= 0;
   return [
@@ -369,7 +420,7 @@ const dailyAverage: Generator = ({ expenses, now }) => {
       icon: 'chart-line-variant',
       tone: up ? 'up' : 'down',
       title: `Média diária ${up ? 'acima' : 'abaixo'} do seu normal`,
-      text: `Este mês: ${formatCurrency(curAvg)}/dia · Histórico: ${formatCurrency(histAvg)}/dia (${up ? '+' : ''}${delta.toFixed(0)}%).`,
+      text: `Nos primeiros ${day} dias deste mês: ${formatCurrency(curAvg)}/dia · Nos primeiros ${day} dias dos outros meses: ${formatCurrency(histAvg)}/dia (${up ? '+' : ''}${delta.toFixed(0)}%).`,
       scopes: ['graficos'],
       priority: 25,
     },
@@ -488,7 +539,8 @@ const priceHistory: Generator = ({ expenses }) => {
   ];
 };
 
-const paidRatio: Generator = ({ expenses, now }) => {
+const paidRatio: Generator = ({ expenses, now, showPaidStatus }) => {
+  if (!showPaidStatus) return [];
   const mk = monthKeyOf(now);
   let open = 0;
   let openCount = 0;
@@ -524,6 +576,7 @@ const GENERATORS: Generator[] = [
   monthVsPrevious,
   biggestPurchase,
   weekdayPattern,
+  weekdaySaverPattern,
   dailyAverage,
   trend3m,
   paidRatio,

@@ -4,6 +4,7 @@ import { Dimensions, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useExpensesByRange } from '@/features/expenses/api';
 import { useGoals } from '@/features/goals/api';
+import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/theme/useTheme';
 import type { ThemeColors } from '@/theme/palette';
 import { generateInsights, type InsightItem, type InsightScope } from './engine';
@@ -17,11 +18,15 @@ export function useInsights(scope: InsightScope): InsightItem[] {
   // range null = todas as despesas — mesma chave de cache do preset "Tudo".
   const { data: expenses } = useExpensesByRange(null);
   const { data: goals } = useGoals(session?.user.id);
+  const showPaidStatus = useAppStore((s) => s.showPaidStatus);
 
   return useMemo(() => {
     if (!expenses) return [];
-    return generateInsights({ expenses, goals: goals ?? [], now: new Date() }, scope);
-  }, [expenses, goals, scope]);
+    return generateInsights(
+      { expenses, goals: goals ?? [], now: new Date(), showPaidStatus },
+      scope,
+    );
+  }, [expenses, goals, scope, showPaidStatus]);
 }
 
 function toneColors(tone: InsightItem['tone'], c: ThemeColors) {

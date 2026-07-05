@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConfirmDeleteSheet } from '@/components/ConfirmDeleteSheet';
 import { ScreenHeader } from '@/components/ScreenHeader';
@@ -45,6 +45,13 @@ export default function SettingsScreen() {
   const card = [styles.card, shadowCard, { backgroundColor: c.surface, borderColor: c.border }];
   const deleting = deleteAllExpenses.isPending || deleteAllGoals.isPending;
 
+  const userMeta = session?.user.user_metadata as
+    | { full_name?: string; name?: string; avatar_url?: string; picture?: string }
+    | undefined;
+  const displayName = userMeta?.full_name ?? userMeta?.name ?? session?.user.email ?? 'Você';
+  const avatarUrl = userMeta?.avatar_url ?? userMeta?.picture;
+  const provider = session?.user.app_metadata?.provider;
+
   function PrefRow({ icon, title, hint, value, onChange }: PrefRowProps) {
     return (
       <View style={styles.row}>
@@ -88,7 +95,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
-      <ScreenHeader title="Configurações" subtitle={session?.user.email ?? undefined} />
+      <ScreenHeader title="Configurações" />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Aparência</Text>
@@ -142,6 +149,38 @@ export default function SettingsScreen() {
 
         <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Conta</Text>
         <View style={card}>
+          <View style={styles.profileRow}>
+            <View style={styles.avatarWrap}>
+              {avatarUrl ? (
+                <Image source={{ uri: avatarUrl }} style={styles.avatar} />
+              ) : (
+                <View
+                  style={[styles.avatar, styles.avatarFallback, { backgroundColor: c.primarySoft }]}
+                >
+                  <MaterialCommunityIcons name="account" size={26} color={c.primary} />
+                </View>
+              )}
+              {provider === 'google' && (
+                <View
+                  style={[
+                    styles.providerBadge,
+                    { backgroundColor: c.surface, borderColor: c.border },
+                  ]}
+                >
+                  <MaterialCommunityIcons name="google" size={11} color="#4285F4" />
+                </View>
+              )}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.profileName, { color: c.text }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+              <Text style={[styles.profileEmail, { color: c.textMuted }]} numberOfLines={1}>
+                {session?.user.email}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.divider, { backgroundColor: c.border }]} />
           <Pressable style={styles.row} onPress={signOut}>
             <View style={[styles.iconBadge, { backgroundColor: c.dangerSoft }]}>
               <MaterialCommunityIcons name="logout" size={18} color={c.danger} />
@@ -230,6 +269,27 @@ const styles = StyleSheet.create({
   },
   segmentText: { fontSize: 13.5, fontWeight: '700' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatarWrap: { width: 52, height: 52 },
+  avatar: { width: 52, height: 52, borderRadius: 26 },
+  avatarFallback: { alignItems: 'center', justifyContent: 'center' },
+  providerBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileName: { ...type.bodyBold, fontSize: 16 },
+  profileEmail: { ...type.caption, marginTop: 1 },
   iconBadge: {
     width: 34,
     height: 34,
