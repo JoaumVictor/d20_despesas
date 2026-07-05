@@ -10,6 +10,7 @@ export interface RecurringSuggestion {
   description: string; // como foi digitada da última vez (não normalizada)
   amount: number; // valor sugerido (do lançamento mais recente)
   monthsMatched: number; // confiança: quantos dos últimos 3 meses bateram
+  suggestedDueDay: number; // dia do mês mais frequente entre os lançamentos detectados
 }
 
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g');
@@ -62,6 +63,7 @@ export function detectRecurringSuggestions(
     monthsSeen: Set<string>;
     latest: { date: string; amount: number } | null;
     seenThisMonth: boolean;
+    dayCounts: Map<number, number>;
   }
 
   const groups = new Map<string, Group>();
@@ -83,6 +85,7 @@ export function detectRecurringSuggestions(
         monthsSeen: new Set(),
         latest: null,
         seenThisMonth: false,
+        dayCounts: new Map(),
       };
       groups.set(groupKey, g);
     }
@@ -91,6 +94,8 @@ export function detectRecurringSuggestions(
       g.seenThisMonth = true;
     } else if (priorMonths.includes(mk)) {
       g.monthsSeen.add(mk);
+      const day = Number(e.date_transaction.slice(8, 10));
+      g.dayCounts.set(day, (g.dayCounts.get(day) ?? 0) + 1);
     }
 
     if (!g.latest || e.date_transaction > g.latest.date) {
@@ -108,6 +113,15 @@ export function detectRecurringSuggestions(
     const key = `${currentMonth}:${groupKey}`;
     if (dismissed.has(key)) continue;
 
+    let suggestedDueDay = Number(g.latest.date.slice(8, 10));
+    let bestCount = -1;
+    for (const [day, count] of g.dayCounts) {
+      if (count > bestCount) {
+        bestCount = count;
+        suggestedDueDay = day;
+      }
+    }
+
     suggestions.push({
       key,
       categoryId: g.categoryId,
@@ -117,6 +131,7 @@ export function detectRecurringSuggestions(
       description: g.description,
       amount: g.latest.amount,
       monthsMatched: g.monthsSeen.size,
+      suggestedDueDay,
     });
   }
 

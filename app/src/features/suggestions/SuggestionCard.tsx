@@ -21,11 +21,12 @@ export function SuggestionCard({ suggestion, onConfirm, onDismiss }: Props) {
         size={38}
       />
       <View style={styles.body}>
-        <Text style={[styles.title, { color: c.text }]} numberOfLines={1}>
-          Já pagou {suggestion.description} esse mês?
+        <Text style={[styles.title, { color: c.text }]} numberOfLines={2}>
+          Todo mês você gasta com {suggestion.description}. Criar um lembrete mensal?
         </Text>
         <Text style={[styles.subtitle, { color: c.textMuted }]}>
-          {suggestion.categoryName} · {formatCurrency(suggestion.amount)}
+          {suggestion.categoryName} · {formatCurrency(suggestion.amount)} · dia{' '}
+          {suggestion.suggestedDueDay}
         </Text>
       </View>
       <View style={styles.actions}>
@@ -34,7 +35,7 @@ export function SuggestionCard({ suggestion, onConfirm, onDismiss }: Props) {
           hitSlop={6}
           style={[styles.actionBtn, { backgroundColor: c.successSoft }]}
         >
-          <MaterialCommunityIcons name="check" size={20} color={c.success} />
+          <MaterialCommunityIcons name="bell-plus-outline" size={20} color={c.success} />
         </Pressable>
         <Pressable
           onPress={onDismiss}

@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSuggestions } from '@/features/suggestions/useSuggestions';
 import { radius, shadowFloating } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -10,10 +11,13 @@ const FAB_SIZE = 60;
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
-function tabIcon(active: IconName, inactive: IconName) {
+function tabIcon(active: IconName, inactive: IconName, showBadge?: boolean) {
   return function TabIcon({ color, focused }: { color: ColorValue; focused: boolean }) {
     return (
-      <MaterialCommunityIcons name={focused ? active : inactive} size={24} color={color} />
+      <View>
+        <MaterialCommunityIcons name={focused ? active : inactive} size={24} color={color} />
+        {showBadge && <View style={styles.badge} />}
+      </View>
     );
   };
 }
@@ -23,6 +27,7 @@ export default function TabsLayout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const tabBarHeight = TAB_BAR_BASE_HEIGHT + insets.bottom;
+  const hasSuggestions = useSuggestions().length > 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -62,7 +67,7 @@ export default function TabsLayout() {
         />
         <Tabs.Screen
           name="goals"
-          options={{ title: 'Metas', tabBarIcon: tabIcon('target', 'target') }}
+          options={{ title: 'Foco', tabBarIcon: tabIcon('target', 'target', hasSuggestions) }}
         />
         <Tabs.Screen
           name="settings"
@@ -94,6 +99,15 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#E5484D',
+  },
   fabSlot: { flex: 1 },
   fabWrap: {
     position: 'absolute',

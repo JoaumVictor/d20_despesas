@@ -71,6 +71,29 @@ export type InstallmentOccurrenceRow = {
   created_at: string;
 };
 
+export type ReminderRow = {
+  id: string;
+  user_id: string;
+  category_id: string;
+  description: string;
+  amount: number;
+  due_day: number;
+  created_at: string;
+  updated_at: string | null;
+};
+
+export type ReminderResolution = 'expense' | 'done_only';
+
+export type ReminderCompletionRow = {
+  id: string;
+  reminder_id: string;
+  /** 1º dia do mês (YYYY-MM-01) */
+  month: string;
+  resolution: ReminderResolution;
+  expense_id: string | null;
+  created_at: string;
+};
+
 type Insert<T, Optional extends keyof T> = Omit<T, Optional> & Partial<Pick<T, Optional>>;
 
 export interface Database {
@@ -110,6 +133,18 @@ export interface Database {
         Row: InstallmentOccurrenceRow;
         Insert: Insert<InstallmentOccurrenceRow, 'id' | 'created_at' | 'expense_id'>;
         Update: Partial<InstallmentOccurrenceRow>;
+        Relationships: [];
+      };
+      reminders: {
+        Row: ReminderRow;
+        Insert: Insert<ReminderRow, 'id' | 'created_at' | 'updated_at'>;
+        Update: Partial<ReminderRow>;
+        Relationships: [];
+      };
+      reminder_completions: {
+        Row: ReminderCompletionRow;
+        Insert: Insert<ReminderCompletionRow, 'id' | 'created_at' | 'expense_id'>;
+        Update: Partial<ReminderCompletionRow>;
         Relationships: [];
       };
     };
