@@ -1,4 +1,6 @@
 import type { ExpoConfig, ConfigContext } from 'expo/config';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { version } = require('./package.json');
 
 /**
  * As variáveis sensíveis vêm do `.env` (URL, KEY, GOOGLE_WEB_CLIENT_ID) e são
@@ -9,7 +11,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Despesas',
   slug: 'despesas',
-  version: '1.0.0',
+  // Fonte única de verdade: package.json. Nunca mais desalinha da versão exibida no app.
+  version,
   scheme: 'despesas',
   orientation: 'portrait',
   icon: './assets/d20_despesas.png',
@@ -38,10 +41,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         image: './assets/d20_despesas.png',
         imageWidth: 200,
         resizeMode: 'contain',
-        backgroundColor: '#E6F4FE',
+        backgroundColor: '#01763B',
         dark: {
           image: './assets/d20_despesas.png',
-          backgroundColor: '#0B1220',
+          backgroundColor: '#01763B',
         },
       },
     ],

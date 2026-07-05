@@ -17,6 +17,16 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: c.bg },
         }}
       />
+      <Stack.Screen
+        name="legal"
+        options={{
+          title: 'Termos e Privacidade',
+          headerStyle: { backgroundColor: c.surface },
+          headerTitleStyle: { color: c.text },
+          headerTintColor: c.primary,
+          contentStyle: { backgroundColor: c.bg },
+        }}
+      />
     </Stack>
   );
 }

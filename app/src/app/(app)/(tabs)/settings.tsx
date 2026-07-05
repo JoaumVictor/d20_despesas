@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -10,6 +11,7 @@ import { useDeleteAllGoals } from '@/features/goals/api';
 import { useAppStore, type ThemeMode } from '@/store/appStore';
 import { radius, shadowCard, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
+import { appVersion } from '@/utils/appVersion';
 
 const THEME_OPTIONS: { key: ThemeMode; label: string; icon: string }[] = [
   { key: 'system', label: 'Sistema', icon: 'cellphone' },
@@ -29,6 +31,7 @@ type DangerAction = 'expenses' | 'all' | 'local-exit' | null;
 
 export default function SettingsScreen() {
   const { signOut, session, isLocal, leaveLocalMode } = useAuth();
+  const router = useRouter();
   const userId = session?.user.id;
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
@@ -220,6 +223,19 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        <Text style={[styles.sectionLabel, { color: c.textMuted }]}>Sobre</Text>
+        <View style={card}>
+          <Pressable style={styles.row} onPress={() => router.push('/legal')}>
+            <View style={[styles.iconBadge, { backgroundColor: c.primarySoft }]}>
+              <MaterialCommunityIcons name="shield-check-outline" size={18} color={c.primary} />
+            </View>
+            <Text style={[styles.rowTitle, { color: c.text, flex: 1 }]}>
+              Termos de uso e Privacidade
+            </Text>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+          </Pressable>
+        </View>
+
         <Text style={[styles.sectionLabel, { color: c.danger }]}>Zona de perigo</Text>
         <View style={card}>
           <Pressable style={styles.row} onPress={() => setDangerAction('expenses')}>
@@ -281,6 +297,10 @@ export default function SettingsScreen() {
             </>
           )}
         </View>
+
+        {appVersion ? (
+          <Text style={[styles.versionText, { color: c.textMuted }]}>Versão {appVersion}</Text>
+        ) : null}
       </ScrollView>
 
       <ConfirmDeleteSheet
@@ -372,4 +392,5 @@ const styles = StyleSheet.create({
   rowTitle: { ...type.bodyBold, fontSize: 15 },
   rowHint: { ...type.caption, marginTop: 1 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: spacing.md },
+  versionText: { ...type.caption, textAlign: 'center', marginTop: spacing.lg },
 });

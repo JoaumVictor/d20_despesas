@@ -1,18 +1,11 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { radius, shadowFloating, spacing, type } from '@/theme/tokens';
+import { appVersion } from '@/utils/appVersion';
 
 const GOOGLE_BLUE = '#4285F4';
 
@@ -107,7 +100,9 @@ export default function LoginScreen() {
 
           <Text style={styles.privacy}>
             Com o Google, seus dados ficam na sua conta. No modo offline, ficam só no aparelho.
+            {'\n'}Conta nova? Você vai precisar de um código de convite no próximo passo.
           </Text>
+          {appVersion ? <Text style={styles.version}>Versão {appVersion}</Text> : null}
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -157,5 +152,12 @@ const styles = StyleSheet.create({
     ...type.caption,
     color: 'rgba(255,255,255,0.6)',
     textAlign: 'center',
+    lineHeight: 17,
+  },
+  version: {
+    ...type.caption,
+    color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center',
+    marginTop: spacing.sm,
   },
 });

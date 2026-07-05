@@ -149,7 +149,20 @@ export interface Database {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      check_invite_code: {
+        Args: { p_code: string };
+        Returns: boolean;
+      };
+      redeem_invite_code: {
+        Args: { p_code: string };
+        Returns: boolean;
+      };
+      has_redeemed_invite: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

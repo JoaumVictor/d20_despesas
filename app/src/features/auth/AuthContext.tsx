@@ -58,6 +58,10 @@ interface AuthContextValue {
   initializing: boolean;
   /** true = perfil 100% local (SQLite no aparelho), sem nenhum contato com o Supabase. */
   isLocal: boolean;
+  /** true = conta Google autenticada mas ainda nunca resgatou um código de convite. */
+  needsInviteCode: boolean;
+  /** Chamar depois de resgatar um código de convite com sucesso. */
+  markInviteRedeemed: () => void;
   signInWithGoogle: () => Promise<void>;
   /** Entra no modo local: nenhuma conta, nenhuma chamada de rede, dados só no aparelho. */
   enterLocalMode: () => Promise<void>;
@@ -72,6 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [isLocal, setIsLocal] = useState(false);
+  const [needsInviteCode, setNeedsInviteCode] = useState(false);
   // espelha `isLocal` sem closure velha — o listener abaixo é registrado uma
   // única vez (mount) e precisa sempre ler o valor mais recente.
   const isLocalRef = useRef(false);
@@ -79,6 +84,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function setLocal(value: boolean) {
     isLocalRef.current = value;
     setIsLocal(value);
+  }
+
+  async function checkInviteStatus() {
+    const { data, error } = await supabase.rpc('has_redeemed_invite');
+    // se der erro checando, não trava por engano quem já usa o app
+    setNeedsInviteCode(error ? false : !data);
   }
 
   useEffect(() => {
@@ -95,6 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       if (isLocalRef.current) return; // perfil local ativo: ignora eventos do Supabase
       setSession(next);
+      if (next) checkInviteStatus();
+      else setNeedsInviteCode(false);
     });
 
     (async () => {
@@ -109,6 +122,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+      if (data.session) await checkInviteStatus();
       setInitializing(false);
     })();
 
@@ -140,6 +154,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const markInviteRedeemed = useCallback(() => {
+    setNeedsInviteCode(false);
+  }, []);
+
   const enterLocalMode = useCallback(async () => {
     await enableLocalMode();
     setLocal(true);
@@ -157,6 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await exitLocalMode();
       setLocal(false);
       setSession(null);
+      setNeedsInviteCode(false);
       return;
     }
     await googleSignin?.GoogleSignin.signOut().catch(() => undefined);
@@ -168,12 +187,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       initializing,
       isLocal,
+      needsInviteCode,
+      markInviteRedeemed,
       signInWithGoogle,
       enterLocalMode,
       leaveLocalMode: leaveLocalModeCb,
       signOut,
     }),
-    [session, initializing, isLocal, signInWithGoogle, enterLocalMode, leaveLocalModeCb, signOut],
+    [
+      session,
+      initializing,
+      isLocal,
+      needsInviteCode,
+      markInviteRedeemed,
+      signInWithGoogle,
+      enterLocalMode,
+      leaveLocalModeCb,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

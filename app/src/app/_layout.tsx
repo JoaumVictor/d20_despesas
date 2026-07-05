@@ -10,21 +10,26 @@ import { queryClient } from '@/lib/queryClient';
 import { useTheme, useThemeName } from '@/theme/useTheme';
 
 function RootNavigator() {
-  const { session, initializing } = useAuth();
+  const { session, initializing, needsInviteCode } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const c = useTheme();
 
   useEffect(() => {
     if (initializing) return;
-    const inAuthGroup = segments[0] === '(auth)';
+    const segs = segments as string[];
+    const inAuthGroup = segs[0] === '(auth)';
 
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (session && inAuthGroup) {
-      router.replace('/(app)');
+    if (!session) {
+      if (!inAuthGroup || segs[1] === 'invite') router.replace('/(auth)/login');
+      return;
     }
-  }, [session, initializing, segments, router]);
+    if (needsInviteCode) {
+      if (segs[1] !== 'invite') router.replace('/(auth)/invite');
+      return;
+    }
+    if (inAuthGroup) router.replace('/(app)');
+  }, [session, initializing, needsInviteCode, segments, router]);
 
   if (initializing) {
     return (
