@@ -82,7 +82,7 @@ function buildBreakdown(expenses: ExpenseWithCategory[]): CategorySlice[] {
   return slices;
 }
 
-function buildDaily(expenses: ExpenseWithCategory[], range: DateRange | null): DailyPoint[] {
+export function buildDaily(expenses: ExpenseWithCategory[], range: DateRange | null): DailyPoint[] {
   const byDay = new Map<string, number>();
   for (const e of expenses) {
     const iso = e.date_transaction.slice(0, 10);
@@ -221,4 +221,34 @@ export function usePeriodStats(period: Period): PeriodStats {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current.data, previous.data, current.isLoading, previous.isLoading, range, isMonth]);
+}
+
+export interface CategorySeries {
+  id: string;
+  name: string;
+  color: string;
+  points: DailyPoint[];
+}
+
+/**
+ * Série diária de gastos por categoria, para comparar visualmente 2+
+ * categorias lado a lado no mesmo período (ex.: Mercado vs iFood).
+ */
+export function useCategoryDailySeries(period: Period, categoryIds: string[]): CategorySeries[] {
+  const range = useMemo(() => periodToRange(period), [period]);
+  const { data } = useExpensesByRange(range, categoryIds.length > 0);
+
+  return useMemo(() => {
+    if (!data || categoryIds.length === 0) return [];
+    return categoryIds.map((id) => {
+      const filtered = data.filter((e) => (e.category?.id ?? 'sem') === id);
+      const cat = filtered[0]?.category;
+      return {
+        id,
+        name: cat?.name ?? FALLBACK.name,
+        color: cat?.color ?? FALLBACK.color,
+        points: buildDaily(filtered, range),
+      };
+    });
+  }, [data, categoryIds, range]);
 }

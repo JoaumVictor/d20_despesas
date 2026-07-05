@@ -5,6 +5,7 @@ import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ConfirmDeleteSheet } from '@/components/ConfirmDeleteSheet';
 import { ScreenHeader } from '@/components/ScreenHeader';
+import { useIsAdmin } from '@/features/admin/api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useDeleteAllExpenses } from '@/features/expenses/api';
 import { useDeleteAllGoals } from '@/features/goals/api';
@@ -32,6 +33,7 @@ type DangerAction = 'expenses' | 'all' | 'local-exit' | null;
 export default function SettingsScreen() {
   const { signOut, session, isLocal, leaveLocalMode } = useAuth();
   const router = useRouter();
+  const { data: isAdmin } = useIsAdmin();
   const userId = session?.user.id;
   const c = useTheme();
   const themeMode = useAppStore((s) => s.themeMode);
@@ -234,6 +236,24 @@ export default function SettingsScreen() {
             </Text>
             <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
           </Pressable>
+          {isAdmin && (
+            <>
+              <View style={[styles.divider, { backgroundColor: c.border }]} />
+              <Pressable style={styles.row} onPress={() => router.push('/admin')}>
+                <View style={[styles.iconBadge, { backgroundColor: c.primarySoft }]}>
+                  <MaterialCommunityIcons
+                    name="shield-crown-outline"
+                    size={18}
+                    color={c.primary}
+                  />
+                </View>
+                <Text style={[styles.rowTitle, { color: c.text, flex: 1 }]}>
+                  Opções de administrador
+                </Text>
+                <MaterialCommunityIcons name="chevron-right" size={20} color={c.textMuted} />
+              </Pressable>
+            </>
+          )}
         </View>
 
         <Text style={[styles.sectionLabel, { color: c.danger }]}>Zona de perigo</Text>

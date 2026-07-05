@@ -162,6 +162,33 @@ export interface Database {
         Args: Record<string, never>;
         Returns: boolean;
       };
+      is_admin: {
+        Args: Record<string, never>;
+        Returns: boolean;
+      };
+      admin_list_invite_codes: {
+        Args: { p_limit: number; p_offset: number };
+        Returns: {
+          code: string;
+          used_by: string | null;
+          used_by_email: string | null;
+          used_at: string | null;
+          created_at: string;
+          total_count: number;
+        }[];
+      };
+      admin_create_invite_code: {
+        Args: { p_code: string };
+        Returns: undefined;
+      };
+      admin_delete_invite_code: {
+        Args: { p_code: string };
+        Returns: undefined;
+      };
+      admin_update_invite_code: {
+        Args: { p_old_code: string; p_new_code: string; p_reset: boolean };
+        Returns: boolean;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

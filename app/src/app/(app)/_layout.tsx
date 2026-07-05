@@ -27,6 +27,16 @@ export default function AppLayout() {
           contentStyle: { backgroundColor: c.bg },
         }}
       />
+      <Stack.Screen
+        name="admin"
+        options={{
+          title: 'Painel Admin',
+          headerStyle: { backgroundColor: c.surface },
+          headerTitleStyle: { color: c.text },
+          headerTintColor: c.primary,
+          contentStyle: { backgroundColor: c.bg },
+        }}
+      />
     </Stack>
   );
 }

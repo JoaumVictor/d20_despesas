@@ -1,6 +1,15 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { radius, shadowFloating, spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 
@@ -21,34 +30,47 @@ export function BottomSheet({ visible, onClose, title, children }: Props) {
   const c = useTheme();
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
-        <Pressable
-          style={[styles.sheet, shadowFloating, { backgroundColor: c.surface }]}
-          onPress={() => {}}
-        >
-          <View style={[styles.handle, { backgroundColor: c.border }]} />
-          {title ? (
-            <View style={styles.header}>
-              <Text style={[styles.title, { color: c.text }]}>{title}</Text>
-              <Pressable
-                onPress={onClose}
-                hitSlop={10}
-                style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}
-              >
-                <MaterialCommunityIcons name="close" size={18} color={c.textMuted} />
-              </Pressable>
-            </View>
-          ) : null}
-          {children}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Pressable style={[styles.backdrop, { backgroundColor: c.overlay }]} onPress={onClose}>
+          <Pressable
+            style={[styles.sheet, shadowFloating, { backgroundColor: c.surface }]}
+            onPress={() => {}}
+          >
+            <View style={[styles.handle, { backgroundColor: c.border }]} />
+            {title ? (
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: c.text }]}>{title}</Text>
+                <Pressable
+                  onPress={onClose}
+                  hitSlop={10}
+                  style={[styles.closeBtn, { backgroundColor: c.surfaceAlt }]}
+                >
+                  <MaterialCommunityIcons name="close" size={18} color={c.textMuted} />
+                </Pressable>
+              </View>
+            ) : null}
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
+              {children}
+            </ScrollView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
+    maxHeight: '90%',
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: spacing.xl,
