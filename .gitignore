@@ -1,0 +1,3 @@
+# Dados financeiros pessoais — nunca versionar
+import_despesas_*.sql
+*_extrato*.json
