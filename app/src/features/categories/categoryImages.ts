@@ -19,6 +19,8 @@ export const CATEGORY_IMAGES: Record<string, ImageSourcePropType> = {
   investimentos: require('../../../assets/categories/investimentos.png'),
   cartao: require('../../../assets/categories/cartao.png'),
   faculdade: require('../../../assets/categories/faculdade.png'),
+  academia: require('../../../assets/categories/academia.png'),
+  vestuario: require('../../../assets/categories/vestuario.png'),
 };
 
 export function categoryImage(key: string | undefined): ImageSourcePropType | undefined {

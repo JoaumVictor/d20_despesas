@@ -1,3 +1,5 @@
+import type { CategoryRow } from '@/types/database';
+
 /**
  * Categorias padrão. `icon` = chave da imagem (ver categoryImages.ts).
  * O `idSort` é estável e usado para reconciliar as categorias já semeadas.
@@ -25,4 +27,47 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { idSort: 11, name: 'Investimentos', icon: 'investimentos', color: '#10b981' },
   { idSort: 12, name: 'Cartões', icon: 'cartao', color: '#7c3aed' },
   { idSort: 13, name: 'Faculdade', icon: 'faculdade', color: '#2563eb' },
+  { idSort: 14, name: 'Academia', icon: 'academia', color: '#84cc16' },
+  { idSort: 15, name: 'Vestuário', icon: 'vestuario', color: '#e11d48' },
 ];
+
+export interface CategoryPlan {
+  /** Categorias padrão que ainda não existem para o usuário. */
+  missing: DefaultCategory[];
+  /** Categorias que existem, mas com o ícone desatualizado. */
+  iconFixes: { id: string; icon: string }[];
+}
+
+/** Ignora acento e caixa: o banco pode ter sido semeado fora do app (import via SQL). */
+function normalizeName(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .trim()
+    .toLowerCase();
+}
+
+/**
+ * Compara o que já está salvo com DEFAULT_CATEGORIES para decidir o que inserir/corrigir.
+ * Casa primeiro pelo nome e, como fallback, pelo `id_sort` — assim uma categoria criada
+ * fora do app é reconhecida (e tem o ícone corrigido) em vez de duplicada.
+ */
+export function planDefaultCategories(existing: CategoryRow[]): CategoryPlan {
+  const plan: CategoryPlan = { missing: [], iconFixes: [] };
+  const matched = new Set<string>();
+
+  for (const def of DEFAULT_CATEGORIES) {
+    const available = existing.filter((row) => !matched.has(row.id));
+    const match =
+      available.find((row) => normalizeName(row.name) === normalizeName(def.name)) ??
+      available.find((row) => row.id_sort === def.idSort);
+
+    if (!match) {
+      plan.missing.push(def);
+      continue;
+    }
+    matched.add(match.id);
+    if (match.icon !== def.icon) plan.iconFixes.push({ id: match.id, icon: def.icon });
+  }
+  return plan;
+}

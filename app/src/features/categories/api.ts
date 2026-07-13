@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getLocalDb, LOCAL_USER_ID } from '@/lib/localDb';
 import { supabase } from '@/lib/supabase';
 import type { CategoryRow } from '@/types/database';
-import { DEFAULT_CATEGORIES } from './defaultCategories';
+import { planDefaultCategories, type CategoryPlan } from './defaultCategories';
 
 export const categoriesKey = ['categories'] as const;
 
@@ -11,33 +11,50 @@ async function fetchCategoriesLocal(): Promise<CategoryRow[]> {
   return db.getAllAsync<CategoryRow>('SELECT * FROM categories ORDER BY id_sort ASC');
 }
 
-async function fetchCategories(userId: string): Promise<CategoryRow[]> {
-  if (userId === LOCAL_USER_ID) return fetchCategoriesLocal();
-
+async function selectCategories(): Promise<CategoryRow[]> {
   const { data, error } = await supabase
     .from('categories')
     .select('*')
     .order('id_sort', { ascending: true });
   if (error) throw error;
-
-  // Primeiro login: sem categorias ainda → cria o conjunto padrão.
-  if (!data || data.length === 0) {
-    return seedDefaultCategories(userId);
-  }
-  return data;
+  return data ?? [];
 }
 
-async function seedDefaultCategories(userId: string): Promise<CategoryRow[]> {
-  const rows = DEFAULT_CATEGORIES.map((c) => ({
-    user_id: userId,
-    id_sort: c.idSort,
-    name: c.name,
-    icon: c.icon,
-    color: c.color,
-  }));
-  const { data, error } = await supabase.from('categories').insert(rows).select('*');
-  if (error) throw error;
-  return data ?? [];
+async function fetchCategories(userId: string): Promise<CategoryRow[]> {
+  if (userId === LOCAL_USER_ID) return fetchCategoriesLocal();
+
+  const rows = await selectCategories();
+
+  // Cobre o primeiro login (nenhuma categoria ainda) e quem já usa o app e
+  // ficou sem as categorias padrão adicionadas depois.
+  const plan = planDefaultCategories(rows);
+  if (plan.missing.length === 0 && plan.iconFixes.length === 0) return rows;
+
+  return applyCategoryPlan(userId, plan);
+}
+
+async function applyCategoryPlan(userId: string, plan: CategoryPlan): Promise<CategoryRow[]> {
+  if (plan.missing.length > 0) {
+    const rows = plan.missing.map((c) => ({
+      user_id: userId,
+      id_sort: c.idSort,
+      name: c.name,
+      icon: c.icon,
+      color: c.color,
+    }));
+    const { error } = await supabase.from('categories').insert(rows);
+    if (error) throw error;
+  }
+
+  for (const fix of plan.iconFixes) {
+    const { error } = await supabase
+      .from('categories')
+      .update({ icon: fix.icon })
+      .eq('id', fix.id);
+    if (error) throw error;
+  }
+
+  return selectCategories();
 }
 
 export function useCategories(userId: string | undefined) {

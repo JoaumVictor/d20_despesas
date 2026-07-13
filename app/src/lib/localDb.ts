@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
-import { DEFAULT_CATEGORIES } from '@/features/categories/defaultCategories';
+import { planDefaultCategories } from '@/features/categories/defaultCategories';
+import type { CategoryRow } from '@/types/database';
 import { uuidv4 } from '@/utils/uuid';
 
 /** Único usuário do perfil local — mantém as mesmas colunas `user_id` do schema remoto. */
@@ -84,13 +85,25 @@ CREATE TABLE IF NOT EXISTS reminder_completions (
 );
 `;
 
-async function seedDefaultCategories(db: SQLite.SQLiteDatabase) {
+/** Semeia as categorias padrão que faltam e corrige ícones desatualizados. */
+async function ensureDefaultCategories(db: SQLite.SQLiteDatabase) {
+  const existing = await db.getAllAsync<CategoryRow>('SELECT * FROM categories');
+  const plan = planDefaultCategories(existing);
   const now = new Date().toISOString();
-  for (const cat of DEFAULT_CATEGORIES) {
+
+  for (const cat of plan.missing) {
     await db.runAsync(
       'INSERT INTO categories (id, user_id, id_sort, name, icon, color, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NULL)',
       [uuidv4(), LOCAL_USER_ID, cat.idSort, cat.name, cat.icon, cat.color, now],
     );
+  }
+
+  for (const fix of plan.iconFixes) {
+    await db.runAsync('UPDATE categories SET icon = ?, updated_at = ? WHERE id = ?', [
+      fix.icon,
+      now,
+      fix.id,
+    ]);
   }
 }
 
@@ -98,10 +111,7 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
   const db = await SQLite.openDatabaseAsync(DB_NAME);
   await db.execAsync('PRAGMA foreign_keys = ON;');
   await db.execAsync(SCHEMA);
-  const { count } = (await db.getFirstAsync<{ count: number }>(
-    'SELECT COUNT(*) as count FROM categories',
-  )) ?? { count: 0 };
-  if (count === 0) await seedDefaultCategories(db);
+  await ensureDefaultCategories(db);
   return db;
 }
 
@@ -123,7 +133,7 @@ export async function resetLocalDb(): Promise<void> {
     DELETE FROM expenses;
     DELETE FROM categories;
   `);
-  await seedDefaultCategories(db);
+  await ensureDefaultCategories(db);
 }
 
 export function newId(): string {
