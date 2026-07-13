@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useExpensesByRange, type ExpenseWithCategory } from '@/features/expenses/api';
+import { applyFilters, emptyFilters, type ExpenseFilters } from '@/features/expenses/filters';
 import {
   periodToRange,
   shiftMonth,
@@ -183,8 +184,13 @@ function buildInsights(
 /**
  * Estatísticas do período ativo. A comparação "vs mês passado" só se aplica
  * ao modo Mês; nos presets, os cards de comparação são omitidos.
+ * Os filtros valem também para o período anterior, senão a comparação misturaria
+ * um total filtrado com um total cheio.
  */
-export function usePeriodStats(period: Period): PeriodStats {
+export function usePeriodStats(
+  period: Period,
+  filters: ExpenseFilters = emptyFilters,
+): PeriodStats {
   const range = useMemo(() => periodToRange(period), [period]);
   const isMonth = period.kind === 'month';
   const prevRange = useMemo(
@@ -196,8 +202,8 @@ export function usePeriodStats(period: Period): PeriodStats {
   const previous = useExpensesByRange(prevRange, isMonth);
 
   return useMemo<PeriodStats>(() => {
-    const curData = current.data ?? [];
-    const prevData = isMonth ? previous.data ?? [] : [];
+    const curData = applyFilters(current.data ?? [], filters);
+    const prevData = isMonth ? applyFilters(previous.data ?? [], filters) : [];
     const total = sum(curData);
     const previousTotal = sum(prevData);
     const byCategory = buildBreakdown(curData);
@@ -219,8 +225,7 @@ export function usePeriodStats(period: Period): PeriodStats {
       isLoading: current.isLoading || (isMonth && previous.isLoading),
       isEmpty: !current.isLoading && curData.length === 0,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current.data, previous.data, current.isLoading, previous.isLoading, range, isMonth]);
+  }, [current.data, previous.data, current.isLoading, previous.isLoading, range, isMonth, filters]);
 }
 
 export interface CategorySeries {
@@ -234,21 +239,26 @@ export interface CategorySeries {
  * Série diária de gastos por categoria, para comparar visualmente 2+
  * categorias lado a lado no mesmo período (ex.: Mercado vs iFood).
  */
-export function useCategoryDailySeries(period: Period, categoryIds: string[]): CategorySeries[] {
+export function useCategoryDailySeries(
+  period: Period,
+  categoryIds: string[],
+  filters: ExpenseFilters = emptyFilters,
+): CategorySeries[] {
   const range = useMemo(() => periodToRange(period), [period]);
   const { data } = useExpensesByRange(range, categoryIds.length > 0);
 
   return useMemo(() => {
     if (!data || categoryIds.length === 0) return [];
+    const visible = applyFilters(data, filters);
     return categoryIds.map((id) => {
-      const filtered = data.filter((e) => (e.category?.id ?? 'sem') === id);
-      const cat = filtered[0]?.category;
+      const ofCategory = visible.filter((e) => (e.category?.id ?? 'sem') === id);
+      const cat = ofCategory[0]?.category;
       return {
         id,
         name: cat?.name ?? FALLBACK.name,
         color: cat?.color ?? FALLBACK.color,
-        points: buildDaily(filtered, range),
+        points: buildDaily(ofCategory, range),
       };
     });
-  }, [data, categoryIds, range]);
+  }, [data, categoryIds, range, filters]);
 }

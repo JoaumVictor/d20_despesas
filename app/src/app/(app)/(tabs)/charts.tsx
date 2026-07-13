@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LineChart, PieChart } from 'react-native-gifted-charts';
+import { ExpenseFiltersButton } from '@/features/expenses/ExpenseFiltersButton';
+import { activeFilterCount, emptyFilters } from '@/features/expenses/filters';
 import { InvestmentChart } from '@/features/investments/InvestmentChart';
 import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
@@ -28,10 +30,14 @@ const COMPARE_COLORS_MAX = 5;
 export default function ChartsScreen() {
   const c = useTheme();
   const period = useAppStore((s) => s.period);
-  const stats = usePeriodStats(period);
+  const filters = useAppStore((s) => s.filters);
+  const setFilters = useAppStore((s) => s.setFilters);
+  const stats = usePeriodStats(period, filters);
 
   const [compareIds, setCompareIds] = useState<string[]>([]);
-  const compareSeries = useCategoryDailySeries(period, compareIds);
+  const compareSeries = useCategoryDailySeries(period, compareIds, filters);
+
+  const filterCount = activeFilterCount(filters);
 
   function toggleCompare(id: string) {
     setCompareIds((prev) => {
@@ -83,6 +89,7 @@ export default function ChartsScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: c.bg }]} edges={['top']}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: c.text }]}>Gráficos</Text>
+        <ExpenseFiltersButton />
       </View>
 
       <View style={styles.filter}>
@@ -93,10 +100,21 @@ export default function ChartsScreen() {
         <ActivityIndicator style={{ marginTop: 40 }} size="large" color={c.primary} />
       ) : stats.isEmpty ? (
         <View style={styles.empty}>
-          <MaterialCommunityIcons name="chart-line" size={48} color={c.border} />
+          <MaterialCommunityIcons
+            name={filterCount > 0 ? 'filter-remove-outline' : 'chart-line'}
+            size={48}
+            color={c.border}
+          />
           <Text style={[styles.emptyText, { color: c.textMuted }]}>
-            Sem despesas neste período para analisar.
+            {filterCount > 0
+              ? 'Nenhuma despesa com esses filtros.'
+              : 'Sem despesas neste período para analisar.'}
           </Text>
+          {filterCount > 0 && (
+            <Pressable onPress={() => setFilters(emptyFilters)}>
+              <Text style={[styles.clearFilters, { color: c.primary }]}>Limpar filtros</Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -256,7 +274,14 @@ export default function ChartsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { paddingHorizontal: spacing.xl, paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
   title: { ...type.title },
   filter: { paddingBottom: spacing.md },
   scroll: { paddingHorizontal: spacing.xl, paddingBottom: 96, gap: spacing.lg },
@@ -302,4 +327,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   emptyText: { ...type.body, textAlign: 'center' },
+  clearFilters: { ...type.bodyBold, marginTop: spacing.xs },
 });

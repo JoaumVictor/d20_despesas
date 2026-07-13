@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { emptyFilters, type ExpenseFilters } from '@/features/expenses/filters';
 import { defaultPeriod, type Period } from '@/features/period/period';
 
 export type ThemeMode = 'system' | 'light' | 'dark';
@@ -10,6 +11,9 @@ interface AppState {
   setThemeMode: (mode: ThemeMode) => void;
   period: Period;
   setPeriod: (period: Period) => void;
+  /** Filtros (texto/categorias/valor) compartilhados entre Despesas e Gráficos. */
+  filters: ExpenseFilters;
+  setFilters: (filters: ExpenseFilters) => void;
   /** Mostra status paga/em aberto (lista + form). Desligado = só anotar gastos. */
   showPaidStatus: boolean;
   setShowPaidStatus: (value: boolean) => void;
@@ -28,6 +32,8 @@ export const useAppStore = create<AppState>()(
       setThemeMode: (themeMode) => set({ themeMode }),
       period: defaultPeriod,
       setPeriod: (period) => set({ period }),
+      filters: emptyFilters,
+      setFilters: (filters) => set({ filters }),
       showPaidStatus: true,
       setShowPaidStatus: (showPaidStatus) => set({ showPaidStatus }),
       showAlertCards: true,
@@ -39,7 +45,7 @@ export const useAppStore = create<AppState>()(
     {
       name: 'd20-app-store',
       storage: createJSONStorage(() => AsyncStorage),
-      // Persiste as preferências; o período reinicia no mês atual.
+      // Persiste as preferências; período e filtros reiniciam a cada sessão.
       partialize: (state) => ({
         themeMode: state.themeMode,
         showPaidStatus: state.showPaidStatus,

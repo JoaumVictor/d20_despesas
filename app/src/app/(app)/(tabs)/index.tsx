@@ -13,16 +13,15 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useCategories } from '@/features/categories/api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ExpenseItem } from '@/features/expenses/ExpenseItem';
-import { ExpenseFiltersModal } from '@/features/expenses/ExpenseFiltersModal';
+import { ExpenseFiltersButton } from '@/features/expenses/ExpenseFiltersButton';
 import {
   useExpensesByRange,
   useToggleStatus,
   type ExpenseWithCategory,
 } from '@/features/expenses/api';
-import { activeFilterCount, applyFilters, emptyFilters } from '@/features/expenses/filters';
+import { applyFilters, emptyFilters } from '@/features/expenses/filters';
 import { CancelInstallmentSheet } from '@/features/installments/CancelInstallmentSheet';
 import { GhostExpenseItem } from '@/features/installments/GhostExpenseItem';
 import {
@@ -35,7 +34,7 @@ import { InsightsCarousel } from '@/features/insights/InsightsCarousel';
 import { PeriodFilter } from '@/features/period/PeriodFilter';
 import { periodToRange, shiftMonth } from '@/features/period/period';
 import { useAppStore } from '@/store/appStore';
-import { radius, spacing, type } from '@/theme/tokens';
+import { spacing, type } from '@/theme/tokens';
 import { useTheme } from '@/theme/useTheme';
 import { formatCurrency, parseISODate } from '@/utils/format';
 
@@ -57,9 +56,10 @@ export default function ExpensesScreen() {
   const { session } = useAuth();
   const period = useAppStore((s) => s.period);
   const setPeriod = useAppStore((s) => s.setPeriod);
+  const filters = useAppStore((s) => s.filters);
+  const setFilters = useAppStore((s) => s.setFilters);
   const showAlertCards = useAppStore((s) => s.showAlertCards);
 
-  const { data: categories } = useCategories(session?.user.id);
   const range = useMemo(() => periodToRange(period), [period]);
   const { data, isLoading, isRefetching, refetch, error } = useExpensesByRange(range);
   const toggleStatus = useToggleStatus();
@@ -67,13 +67,10 @@ export default function ExpensesScreen() {
   const confirmInstallment = useConfirmInstallment(session?.user.id ?? '');
   const cancelInstallment = useCancelInstallment();
 
-  const [filters, setFilters] = useState(emptyFilters);
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [cancelTarget, setCancelTarget] = useState<GhostInstallment | null>(null);
 
   const filtered = useMemo(() => applyFilters(data ?? [], filters), [data, filters]);
   const total = useMemo(() => filtered.reduce((sum, e) => sum + e.price, 0), [filtered]);
-  const filterCount = activeFilterCount(filters);
 
   const sections = useMemo(() => {
     const byDay = new Map<string, ExpenseWithCategory[]>();
@@ -148,21 +145,7 @@ export default function ExpensesScreen() {
           <Text style={[styles.hello, { color: c.textMuted }]}>Suas despesas</Text>
           <Text style={[styles.total, { color: c.text }]}>{formatCurrency(total)}</Text>
         </View>
-        <Pressable
-          onPress={() => setFiltersOpen(true)}
-          style={[styles.filterBtn, { backgroundColor: c.surfaceAlt, borderColor: c.border }]}
-        >
-          <MaterialCommunityIcons
-            name="tune-variant"
-            size={22}
-            color={filterCount > 0 ? c.primary : c.textMuted}
-          />
-          {filterCount > 0 && (
-            <View style={[styles.badge, { backgroundColor: c.primary }]}>
-              <Text style={[styles.badgeText, { color: c.primaryContrast }]}>{filterCount}</Text>
-            </View>
-          )}
-        </Pressable>
+        <ExpenseFiltersButton />
       </View>
 
       <View style={styles.periodFilter}>
@@ -255,14 +238,6 @@ export default function ExpensesScreen() {
         </View>
       )}
 
-      <ExpenseFiltersModal
-        visible={filtersOpen}
-        categories={categories ?? []}
-        value={filters}
-        onApply={setFilters}
-        onClose={() => setFiltersOpen(false)}
-      />
-
       <CancelInstallmentSheet
         ghost={cancelTarget}
         loading={cancelInstallment.isPending}
@@ -287,26 +262,6 @@ const styles = StyleSheet.create({
   total: { ...type.display, marginTop: 2 },
   periodFilter: { paddingBottom: spacing.sm },
   insights: { paddingBottom: spacing.sm },
-  filterBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    minWidth: 19,
-    height: 19,
-    borderRadius: radius.pill,
-    paddingHorizontal: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { fontSize: 11, fontWeight: '800' },
   listContent: { paddingHorizontal: spacing.xl, paddingBottom: 96 },
   ghosts: { paddingTop: spacing.sm },
   dayHeader: {
